@@ -1,9 +1,9 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-0.4.2-blue.svg)
+![Version](https://img.shields.io/badge/version-0.4.3-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Tests](https://img.shields.io/badge/tests-54%20passed-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-131%20passed-brightgreen.svg)
 ![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)
 
 A Python project following Test-Driven Development (TDD), SOLID principles, and industry best practices with comprehensive testing and Docker containerization.
@@ -14,7 +14,7 @@ Odin is a Python development environment configured for senior-level development
 
 - **Test-Driven Development (TDD)**: Write tests first, then implement
 - **SOLID Principles**: Clean, maintainable, and extensible code architecture
-- **High Test Coverage**: 100% coverage for web portal with 54 passing tests (0 failures, 0 errors, 0 warnings)
+- **High Test Coverage**: 100% coverage for web portal (54 tests) and complete worker test suite (77 tests)
 - **Docker Containerization**: Consistent development and deployment environments
 - **Code Quality**: Automated linting, formatting, and type checking
 

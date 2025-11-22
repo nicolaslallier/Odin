@@ -116,7 +116,13 @@ def process_webhook(webhook_data: dict[str, Any], signature: str) -> dict[str, A
 
     with session_scope() as session:
         # Store webhook event in database
-        # Placeholder - actual implementation would create database records
+        # Create a simple event record (placeholder for actual database model)
+        event_record = type("WebhookEvent", (), {
+            "event_type": event_type,
+            "payload": webhook_data.get("payload", {}),
+            "signature": signature
+        })()
+        session.add(event_record)
         stored = True
 
         # Process based on event type

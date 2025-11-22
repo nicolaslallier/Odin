@@ -323,17 +323,17 @@ test-web-integration:
 # Worker Component Tests
 test-worker:
 	@echo "$(BLUE)Running all Worker tests (unit + integration)...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/worker/ tests/integration/worker/ -v
+	@$(DOCKER_COMPOSE) run --rm -e CELERY_BROKER_URL=amqp://$${RABBITMQ_USER:-odin}:$${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672// -e CELERY_RESULT_BACKEND=db+postgresql://$${POSTGRES_USER:-odin}:$${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/$${POSTGRES_DB:-odin_db} portal pytest tests/unit/worker/ tests/integration/worker/ -v --no-cov
 	@echo "$(GREEN)✓ Worker tests complete!$(NC)"
 
 test-worker-unit:
 	@echo "$(BLUE)Running Worker unit tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/worker/ -v -m unit
+	@$(DOCKER_COMPOSE) run --rm -e CELERY_BROKER_URL=amqp://$${RABBITMQ_USER:-odin}:$${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672// -e CELERY_RESULT_BACKEND=db+postgresql://$${POSTGRES_USER:-odin}:$${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/$${POSTGRES_DB:-odin_db} portal pytest tests/unit/worker/ -v -m unit --no-cov
 	@echo "$(GREEN)✓ Worker unit tests complete!$(NC)"
 
 test-worker-integration:
 	@echo "$(BLUE)Running Worker integration tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm portal pytest tests/integration/worker/ -v -m integration
+	@$(DOCKER_COMPOSE) run --rm -e CELERY_BROKER_URL=amqp://$${RABBITMQ_USER:-odin}:$${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672// -e CELERY_RESULT_BACKEND=db+postgresql://$${POSTGRES_USER:-odin}:$${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/$${POSTGRES_DB:-odin_db} portal pytest tests/integration/worker/ -v -m integration --no-cov
 	@echo "$(GREEN)✓ Worker integration tests complete!$(NC)"
 
 # Component-Specific Coverage
@@ -351,7 +351,7 @@ coverage-web:
 
 coverage-worker:
 	@echo "$(BLUE)Generating Worker coverage report...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/worker/ tests/integration/worker/ --cov=src/worker --cov-report=html --cov-report=term-missing --cov-report=xml
+	@$(DOCKER_COMPOSE) run --rm -e CELERY_BROKER_URL=amqp://$${RABBITMQ_USER:-odin}:$${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672// -e CELERY_RESULT_BACKEND=db+postgresql://$${POSTGRES_USER:-odin}:$${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/$${POSTGRES_DB:-odin_db} portal pytest tests/unit/worker/ tests/integration/worker/ --cov=src/worker --cov-report=html --cov-report=term-missing --cov-report=xml
 	@echo "$(GREEN)✓ Worker coverage report generated!$(NC)"
 	@echo "$(YELLOW)HTML report: htmlcov/index.html$(NC)"
 

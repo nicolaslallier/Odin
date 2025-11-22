@@ -10,6 +10,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from celery.schedules import crontab
 
 from src.worker.beat_schedule import get_beat_schedule
 from src.worker.celery_app import get_celery_app
@@ -69,9 +70,7 @@ class TestBeatScheduleConfiguration:
             assert "schedule" in task_config
             schedule_value = task_config["schedule"]
             # Schedule can be a timedelta, crontab, or number
-            assert isinstance(schedule_value, (timedelta, int, float)) or hasattr(
-                schedule_value, "run_every"
-            )
+            assert isinstance(schedule_value, (timedelta, int, float, crontab))
 
     def test_health_check_runs_every_5_minutes(self) -> None:
         """Test that health check is scheduled to run every 5 minutes."""

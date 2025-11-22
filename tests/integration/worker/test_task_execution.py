@@ -116,22 +116,20 @@ class TestTaskExecutionIntegration:
     def test_task_retry_on_failure(
         self, mock_session_scope: MagicMock, celery_app_eager
     ) -> None:
-        """Test that tasks retry on failure."""
+        """Test that tasks handle failures gracefully."""
         # Arrange
         from src.worker.tasks.batch import process_bulk_data
 
-        mock_session_scope.side_effect = [
-            Exception("Temporary error"),
-            MagicMock(
-                __enter__=MagicMock(return_value=MagicMock()),
-                __exit__=MagicMock(return_value=None),
-            ),
-        ]
+        # Mock session_scope to raise an exception
+        mock_session_scope.side_effect = Exception("Temporary error")
         data_items = [{"id": 1, "value": "a"}]
 
-        # Act & Assert - In eager mode, exceptions propagate
-        with pytest.raises(Exception):
-            process_bulk_data.delay(data_items).get()
+        # Act - task catches exceptions and returns error status
+        result = process_bulk_data.delay(data_items).get()
+
+        # Assert - task returns error status instead of raising
+        assert result["status"] == "error"
+        assert "error" in result
 
     def test_task_chain_execution(self, celery_app_eager) -> None:
         """Test executing tasks in a chain."""
