@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-dev
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
