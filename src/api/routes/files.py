@@ -7,31 +7,39 @@ from __future__ import annotations
 
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
-from src.api.config import APIConfig, get_config
+from src.api.exceptions import ResourceNotFoundError, StorageError
 from src.api.models.schemas import FileListResponse, FileUploadResponse
+from src.api.services.container import ServiceContainer
 from src.api.services.storage import StorageService
 
 router = APIRouter(prefix="/files", tags=["files"])
 
 
-def get_storage_service(config: APIConfig = Depends(get_config)) -> StorageService:
+def get_container(request: Request) -> ServiceContainer:
+    """Dependency to get service container from app state.
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        Service container instance
+    """
+    return request.app.state.container
+
+
+def get_storage_service(container: ServiceContainer = Depends(get_container)) -> StorageService:
     """Dependency to get storage service instance.
 
     Args:
-        config: API configuration
+        container: Service container
 
     Returns:
         Storage service instance
     """
-    return StorageService(
-        endpoint=config.minio_endpoint,
-        access_key=config.minio_access_key,
-        secret_key=config.minio_secret_key,
-        secure=config.minio_secure,
-    )
+    return container.storage
 
 
 @router.post("/upload", response_model=FileUploadResponse)
@@ -51,6 +59,9 @@ async def upload_file(
 
     Returns:
         Upload confirmation response
+
+    Raises:
+        HTTPException: If upload fails
     """
     try:
         # Ensure bucket exists
@@ -67,6 +78,8 @@ async def upload_file(
         return FileUploadResponse(
             bucket=bucket, key=key, message=f"File {key} uploaded successfully"
         )
+    except StorageError as e:
+        raise HTTPException(status_code=500, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -86,6 +99,9 @@ async def download_file(
 
     Returns:
         File content as streaming response
+
+    Raises:
+        HTTPException: If file not found or download fails
     """
     try:
         content = storage.download_file(bucket, key)
@@ -94,8 +110,10 @@ async def download_file(
             media_type="application/octet-stream",
             headers={"Content-Disposition": f"attachment; filename={key}"},
         )
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except ResourceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
+    except StorageError as e:
+        raise HTTPException(status_code=500, detail=e.message)
 
 
 @router.delete("/{key}")
@@ -113,12 +131,15 @@ async def delete_file(
 
     Returns:
         Deletion confirmation message
+
+    Raises:
+        HTTPException: If deletion fails
     """
     try:
         storage.delete_file(bucket, key)
         return {"message": f"File {key} deleted successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except StorageError as e:
+        raise HTTPException(status_code=500, detail=e.message)
 
 
 @router.get("/", response_model=FileListResponse)
@@ -136,10 +157,13 @@ async def list_files(
 
     Returns:
         List of files in bucket
+
+    Raises:
+        HTTPException: If listing fails
     """
     try:
         files = storage.list_files(bucket, prefix)
         return FileListResponse(bucket=bucket, files=files)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except StorageError as e:
+        raise HTTPException(status_code=500, detail=e.message)
 

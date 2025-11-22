@@ -6,9 +6,12 @@ for the API service.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Optional
 
 import hvac
+
+from src.api.exceptions import ResourceNotFoundError, ServiceUnavailableError, VaultError
 
 
 class VaultService:
@@ -48,9 +51,20 @@ class VaultService:
         Args:
             path: Path where secret should be stored (e.g., secret/data/myapp)
             secret: Dictionary containing secret key-value pairs
+
+        Raises:
+            VaultError: If secret write fails
+            ServiceUnavailableError: If Vault is unreachable
         """
-        client = self.get_client()
-        client.secrets.kv.v2.create_or_update_secret(path=path, secret=secret)
+        try:
+            client = self.get_client()
+            client.secrets.kv.v2.create_or_update_secret(path=path, secret=secret)
+        except hvac.exceptions.Forbidden as e:
+            raise VaultError(f"Permission denied writing secret: {e}", {"path": path})
+        except hvac.exceptions.VaultError as e:
+            raise VaultError(f"Failed to write secret: {e}", {"path": path})
+        except Exception as e:
+            raise ServiceUnavailableError(f"Vault unreachable: {e}")
 
     def read_secret(self, path: str) -> Optional[dict[str, Any]]:
         """Read a secret from Vault.
@@ -60,22 +74,38 @@ class VaultService:
 
         Returns:
             Dictionary containing secret data, or None if not found
+
+        Raises:
+            VaultError: If secret read fails
+            ResourceNotFoundError: If secret not found
         """
         try:
             client = self.get_client()
             response = client.secrets.kv.v2.read_secret_version(path=path)
             return response["data"]["data"]
-        except Exception:
-            return None
+        except hvac.exceptions.InvalidPath:
+            raise ResourceNotFoundError(f"Secret not found at path: {path}", {"path": path})
+        except hvac.exceptions.Forbidden as e:
+            raise VaultError(f"Permission denied reading secret: {e}", {"path": path})
+        except hvac.exceptions.VaultError as e:
+            raise VaultError(f"Failed to read secret: {e}", {"path": path})
+        except Exception as e:
+            raise ServiceUnavailableError(f"Vault unreachable: {e}")
 
     def delete_secret(self, path: str) -> None:
         """Delete a secret from Vault.
 
         Args:
             path: Path of secret to delete
+
+        Raises:
+            VaultError: If secret deletion fails
         """
-        client = self.get_client()
-        client.secrets.kv.v2.delete_metadata_and_all_versions(path=path)
+        try:
+            client = self.get_client()
+            client.secrets.kv.v2.delete_metadata_and_all_versions(path=path)
+        except hvac.exceptions.VaultError as e:
+            raise VaultError(f"Failed to delete secret: {e}", {"path": path})
 
     def list_secrets(self, path: str) -> list[str]:
         """List secrets at a given path.
@@ -85,23 +115,34 @@ class VaultService:
 
         Returns:
             List of secret names at the path
+
+        Raises:
+            VaultError: If listing fails
         """
         try:
             client = self.get_client()
             response = client.secrets.kv.v2.list_secrets(path=path)
             return response["data"]["keys"]
-        except Exception:
+        except hvac.exceptions.InvalidPath:
             return []
+        except hvac.exceptions.VaultError as e:
+            raise VaultError(f"Failed to list secrets: {e}", {"path": path})
 
-    def health_check(self) -> bool:
+    async def health_check(self) -> bool:
         """Check if Vault connection is healthy.
+
+        This method runs synchronous Vault operations in a thread pool
+        to avoid blocking the event loop.
 
         Returns:
             True if Vault is accessible and authenticated, False otherwise
         """
         try:
+            loop = asyncio.get_event_loop()
             client = self.get_client()
-            return client.is_authenticated()
+            # Run synchronous is_authenticated in thread pool
+            result = await loop.run_in_executor(None, client.is_authenticated)
+            return result
         except Exception:
             return False
 

@@ -6,11 +6,49 @@ instances, following the Open/Closed Principle (OCP) from SOLID.
 
 from __future__ import annotations
 
-from typing import Optional
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI
 
 from src.api.config import APIConfig, get_config
+from src.api.services.container import ServiceContainer
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Manage application lifespan events.
+
+    This context manager handles initialization and cleanup of services
+    during application startup and shutdown.
+
+    Args:
+        app: FastAPI application instance
+
+    Yields:
+        None
+    """
+    # Configure structured logging
+    from src.api.logging_config import configure_logging
+
+    config = app.state.config
+    configure_logging(level=config.log_level.upper(), use_json=True)
+
+    # Startup: Initialize services
+    container = ServiceContainer(config)
+    await container.initialize()
+    app.state.container = container
+
+    # Initialize database tables
+    from src.api.repositories.data_repository import create_tables
+
+    engine = container.database.get_engine()
+    await create_tables(engine)
+
+    yield
+
+    # Shutdown: Cleanup services
+    await container.shutdown()
 
 
 def create_app(config: Optional[APIConfig] = None) -> FastAPI:
@@ -37,13 +75,14 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     if config is None:
         config = get_config()
 
-    # Create FastAPI application
+    # Create FastAPI application with lifespan manager
     app = FastAPI(
         title="Odin API Service",
-        version="0.3.0",
+        version="0.4.0",
         description="Internal API service for the Odin project, "
         "providing endpoints for data management, file storage, messaging, "
         "secret management, and LLM operations.",
+        lifespan=lifespan,
     )
 
     # Store configuration in app state
@@ -65,4 +104,23 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     app.include_router(llm_router)
 
     return app
+
+
+def get_container(app: FastAPI) -> ServiceContainer:
+    """Get the service container from app state.
+
+    This function provides dependency injection for accessing services.
+
+    Args:
+        app: FastAPI application instance
+
+    Returns:
+        Service container instance
+
+    Raises:
+        RuntimeError: If container not initialized
+    """
+    if not hasattr(app.state, "container"):
+        raise RuntimeError("Service container not initialized")
+    return app.state.container
 

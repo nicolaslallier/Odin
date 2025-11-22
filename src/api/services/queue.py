@@ -6,16 +6,20 @@ for the API service.
 
 from __future__ import annotations
 
-from typing import Optional
+from contextlib import contextmanager
+from typing import Generator, Optional
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel, BlockingConnection
+
+from src.api.exceptions import QueueError, ServiceUnavailableError
 
 
 class QueueService:
     """RabbitMQ queue service client.
 
-    This class provides message queue operations using RabbitMQ.
+    This class provides message queue operations using RabbitMQ with
+    connection pooling and proper resource management.
 
     Attributes:
         url: RabbitMQ connection URL
@@ -28,15 +32,58 @@ class QueueService:
             url: RabbitMQ connection URL (e.g., amqp://user:pass@host:5672/)
         """
         self.url = url
+        self._connection: Optional[BlockingConnection] = None
+        self._parameters = pika.URLParameters(self.url)
 
-    def get_connection(self) -> BlockingConnection:
-        """Get a new RabbitMQ connection.
+    def _ensure_connection(self) -> BlockingConnection:
+        """Ensure a valid connection exists.
 
         Returns:
-            RabbitMQ blocking connection instance
+            RabbitMQ connection instance
+
+        Raises:
+            ServiceUnavailableError: If connection cannot be established
         """
-        parameters = pika.URLParameters(self.url)
-        return pika.BlockingConnection(parameters)
+        try:
+            if self._connection is None or self._connection.is_closed:
+                self._connection = pika.BlockingConnection(self._parameters)
+            return self._connection
+        except pika.exceptions.AMQPConnectionError as e:
+            raise ServiceUnavailableError(f"Failed to connect to RabbitMQ: {e}")
+
+    @contextmanager
+    def _get_channel(self) -> Generator[BlockingChannel, None, None]:
+        """Get a channel with automatic cleanup.
+
+        Yields:
+            RabbitMQ channel instance
+
+        Raises:
+            QueueError: If channel creation fails
+        """
+        connection = self._ensure_connection()
+        channel = None
+        try:
+            channel = connection.channel()
+            yield channel
+        except Exception as e:
+            raise QueueError(f"Channel operation failed: {e}")
+        finally:
+            if channel and channel.is_open:
+                try:
+                    channel.close()
+                except Exception:
+                    pass
+
+    async def close(self) -> None:
+        """Close the connection and cleanup resources."""
+        if self._connection and not self._connection.is_closed:
+            try:
+                self._connection.close()
+            except Exception:
+                pass
+            finally:
+                self._connection = None
 
     def declare_queue(self, queue_name: str, durable: bool = True) -> None:
         """Declare a queue.
@@ -44,13 +91,12 @@ class QueueService:
         Args:
             queue_name: Name of the queue to declare
             durable: Whether the queue should survive broker restart
+
+        Raises:
+            QueueError: If queue declaration fails
         """
-        connection = self.get_connection()
-        try:
-            channel = connection.channel()
+        with self._get_channel() as channel:
             channel.queue_declare(queue=queue_name, durable=durable)
-        finally:
-            connection.close()
 
     def publish_message(self, queue_name: str, message: str, persistent: bool = True) -> None:
         """Publish a message to a queue.
@@ -59,10 +105,11 @@ class QueueService:
             queue_name: Name of the queue
             message: Message content to send
             persistent: Whether message should survive broker restart
+
+        Raises:
+            QueueError: If message publishing fails
         """
-        connection = self.get_connection()
-        try:
-            channel = connection.channel()
+        with self._get_channel() as channel:
             properties = None
             if persistent:
                 properties = pika.BasicProperties(delivery_mode=2)
@@ -73,8 +120,6 @@ class QueueService:
                 body=message,
                 properties=properties,
             )
-        finally:
-            connection.close()
 
     def consume_message(self, queue_name: str) -> Optional[str]:
         """Consume a single message from queue.
@@ -84,10 +129,11 @@ class QueueService:
 
         Returns:
             Message content as string, or None if queue is empty
+
+        Raises:
+            QueueError: If message consumption fails
         """
-        connection = self.get_connection()
-        try:
-            channel = connection.channel()
+        with self._get_channel() as channel:
             method, properties, body = channel.basic_get(queue=queue_name, auto_ack=False)
             
             if method is None:
@@ -95,33 +141,28 @@ class QueueService:
             
             channel.basic_ack(delivery_tag=method.delivery_tag)
             return body.decode("utf-8")
-        finally:
-            connection.close()
 
     def purge_queue(self, queue_name: str) -> None:
         """Remove all messages from a queue.
 
         Args:
             queue_name: Name of the queue to purge
-        """
-        connection = self.get_connection()
-        try:
-            channel = connection.channel()
-            channel.queue_purge(queue=queue_name)
-        finally:
-            connection.close()
 
-    def health_check(self) -> bool:
+        Raises:
+            QueueError: If queue purge fails
+        """
+        with self._get_channel() as channel:
+            channel.queue_purge(queue=queue_name)
+
+    async def health_check(self) -> bool:
         """Check if RabbitMQ connection is healthy.
 
         Returns:
             True if RabbitMQ is accessible, False otherwise
         """
         try:
-            connection = self.get_connection()
-            is_open = connection.is_open
-            connection.close()
-            return is_open
+            connection = self._ensure_connection()
+            return connection.is_open
         except Exception:
             return False
 

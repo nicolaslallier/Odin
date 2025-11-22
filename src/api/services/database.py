@@ -10,7 +10,10 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+
+from src.api.exceptions import DatabaseError, ServiceUnavailableError
 
 
 class DatabaseService:
@@ -37,15 +40,22 @@ class DatabaseService:
 
         Returns:
             SQLAlchemy async engine instance
+
+        Raises:
+            ServiceUnavailableError: If engine creation fails
         """
         if self._engine is None:
-            self._engine = create_async_engine(
-                self.dsn,
-                echo=False,
-                pool_pre_ping=True,
-                pool_size=5,
-                max_overflow=10,
-            )
+            try:
+                self._engine = create_async_engine(
+                    self.dsn,
+                    echo=False,
+                    pool_pre_ping=True,
+                    pool_size=5,
+                    max_overflow=10,
+                    pool_recycle=3600,  # Recycle connections after 1 hour
+                )
+            except Exception as e:
+                raise ServiceUnavailableError(f"Failed to create database engine: {e}")
         return self._engine
 
     @asynccontextmanager
@@ -54,6 +64,9 @@ class DatabaseService:
 
         Yields:
             AsyncSession instance for database operations
+
+        Raises:
+            DatabaseError: If session operations fail
 
         Example:
             >>> async with service.get_session() as session:
@@ -66,9 +79,12 @@ class DatabaseService:
             try:
                 yield session
                 await session.commit()
-            except Exception:
+            except SQLAlchemyError as e:
                 await session.rollback()
-                raise
+                raise DatabaseError(f"Database operation failed: {e}")
+            except Exception as e:
+                await session.rollback()
+                raise DatabaseError(f"Unexpected error during database operation: {e}")
 
     async def health_check(self) -> bool:
         """Check if database connection is healthy.

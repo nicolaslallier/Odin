@@ -91,15 +91,33 @@ class GenerateResponse(BaseModel):
 
 
 class ModelInfo(BaseModel):
-    """Model information model."""
+    """Model information model with extended details."""
 
     name: str = Field(..., description="Model name")
+    size: Optional[int] = Field(None, description="Model size in bytes")
+    digest: Optional[str] = Field(None, description="Model digest/hash")
+    modified_at: Optional[str] = Field(None, description="Last modification time")
 
 
 class ModelListResponse(BaseModel):
     """Model list response model."""
 
     models: list[ModelInfo] = Field(..., description="List of available models")
+
+
+# Circuit Breaker Models
+class CircuitBreakerState(BaseModel):
+    """Circuit breaker state information."""
+
+    name: str = Field(..., description="Circuit breaker name")
+    state: str = Field(..., description="Current state (closed, open, half_open)")
+    failure_count: int = Field(..., description="Number of consecutive failures")
+
+
+class CircuitBreakerStates(BaseModel):
+    """Circuit breaker states for all services."""
+
+    breakers: dict[str, str] = Field(..., description="Map of service name to state")
 
 
 # Data CRUD Models (generic example)

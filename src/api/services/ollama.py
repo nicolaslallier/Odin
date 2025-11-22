@@ -11,11 +11,14 @@ from typing import Any, AsyncGenerator, Optional
 
 import httpx
 
+from src.api.exceptions import LLMError, ServiceUnavailableError
+
 
 class OllamaService:
     """Ollama LLM service client.
 
     This class provides LLM operations including text generation and model management.
+    It maintains a persistent HTTP client for connection pooling and reuse.
 
     Attributes:
         base_url: Ollama API base URL
@@ -28,17 +31,78 @@ class OllamaService:
             base_url: Ollama API base URL (e.g., http://ollama:11434)
         """
         self.base_url = base_url
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def initialize(self) -> None:
+        """Initialize the HTTP client for connection pooling.
+
+        This method creates a persistent HTTP client that will be reused
+        for all requests, improving performance and resource usage.
+        """
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0, connect=5.0),
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+            )
+
+    async def close(self) -> None:
+        """Close the HTTP client and cleanup resources."""
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        """Get the HTTP client instance.
+
+        Returns:
+            HTTP client instance
+
+        Raises:
+            ServiceUnavailableError: If client not initialized
+        """
+        if self._client is None:
+            raise ServiceUnavailableError(
+                "Ollama service not initialized. Call initialize() first."
+            )
+        return self._client
 
     async def list_models(self) -> list[dict[str, Any]]:
         """List available models.
 
         Returns:
-            List of model information dictionaries
+            List of model information dictionaries with fields:
+            - name: Model name
+            - size: Model size in bytes (optional)
+            - digest: Model digest/hash (optional)  
+            - modified_at: Last modification time (optional)
+
+        Raises:
+            LLMError: If failed to list models
+            ServiceUnavailableError: If Ollama service is unreachable
         """
-        async with httpx.AsyncClient() as client:
+        try:
+            client = self._get_client()
             response = await client.get(f"{self.base_url}/api/tags")
+            response.raise_for_status()
             data = response.json()
-            return data.get("models", [])
+            
+            # Extract and normalize model information
+            models = data.get("models", [])
+            normalized_models = []
+            for model in models:
+                normalized_model = {
+                    "name": model.get("name", "unknown"),
+                    "size": model.get("size"),
+                    "digest": model.get("digest"),
+                    "modified_at": model.get("modified_at"),
+                }
+                normalized_models.append(normalized_model)
+            
+            return normalized_models
+        except httpx.HTTPStatusError as e:
+            raise LLMError(f"Failed to list models: {e}", {"status_code": e.response.status_code})
+        except httpx.RequestError as e:
+            raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
 
     async def generate_text(
         self, model: str, prompt: str, system: Optional[str] = None
@@ -52,8 +116,13 @@ class OllamaService:
 
         Returns:
             Generated text
+
+        Raises:
+            LLMError: If text generation fails
+            ServiceUnavailableError: If Ollama service is unreachable
         """
-        async with httpx.AsyncClient() as client:
+        try:
+            client = self._get_client()
             payload: dict[str, Any] = {
                 "model": model,
                 "prompt": prompt,
@@ -66,10 +135,17 @@ class OllamaService:
             response = await client.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
-                timeout=60.0,
             )
+            response.raise_for_status()
             data = response.json()
             return data["response"]
+        except httpx.HTTPStatusError as e:
+            raise LLMError(
+                f"Failed to generate text: {e}",
+                {"status_code": e.response.status_code, "model": model},
+            )
+        except httpx.RequestError as e:
+            raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
 
     async def generate_text_streaming(
         self, model: str, prompt: str, system: Optional[str] = None
@@ -83,8 +159,13 @@ class OllamaService:
 
         Yields:
             Text chunks as they are generated
+
+        Raises:
+            LLMError: If text generation fails
+            ServiceUnavailableError: If Ollama service is unreachable
         """
-        async with httpx.AsyncClient() as client:
+        try:
+            client = self._get_client()
             payload: dict[str, Any] = {
                 "model": model,
                 "prompt": prompt,
@@ -98,13 +179,20 @@ class OllamaService:
                 "POST",
                 f"{self.base_url}/api/generate",
                 json=payload,
-                timeout=60.0,
             ) as response:
+                response.raise_for_status()
                 async for line in response.aiter_lines():
                     if line:
                         data = json.loads(line)
                         if "response" in data:
                             yield data["response"]
+        except httpx.HTTPStatusError as e:
+            raise LLMError(
+                f"Failed to generate streaming text: {e}",
+                {"status_code": e.response.status_code, "model": model},
+            )
+        except httpx.RequestError as e:
+            raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
 
     async def pull_model(self, model: str) -> bool:
         """Pull/download a model.
@@ -114,17 +202,27 @@ class OllamaService:
 
         Returns:
             True if successful, False otherwise
+
+        Raises:
+            LLMError: If model pull fails
+            ServiceUnavailableError: If Ollama service is unreachable
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.base_url}/api/pull",
-                    json={"name": model},
-                    timeout=300.0,
-                )
-                return response.status_code == 200
-        except Exception:
-            return False
+            client = self._get_client()
+            response = await client.post(
+                f"{self.base_url}/api/pull",
+                json={"name": model},
+                timeout=httpx.Timeout(300.0),
+            )
+            response.raise_for_status()
+            return True
+        except httpx.HTTPStatusError as e:
+            raise LLMError(
+                f"Failed to pull model: {e}",
+                {"status_code": e.response.status_code, "model": model},
+            )
+        except httpx.RequestError as e:
+            raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
 
     async def delete_model(self, model: str) -> bool:
         """Delete a model.
@@ -134,16 +232,26 @@ class OllamaService:
 
         Returns:
             True if successful, False otherwise
+
+        Raises:
+            LLMError: If model deletion fails
+            ServiceUnavailableError: If Ollama service is unreachable
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.delete(
-                    f"{self.base_url}/api/delete",
-                    json={"name": model},
-                )
-                return response.status_code == 200
-        except Exception:
-            return False
+            client = self._get_client()
+            response = await client.delete(
+                f"{self.base_url}/api/delete",
+                json={"name": model},
+            )
+            response.raise_for_status()
+            return True
+        except httpx.HTTPStatusError as e:
+            raise LLMError(
+                f"Failed to delete model: {e}",
+                {"status_code": e.response.status_code, "model": model},
+            )
+        except httpx.RequestError as e:
+            raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
 
     async def health_check(self) -> bool:
         """Check if Ollama connection is healthy.
@@ -152,9 +260,12 @@ class OllamaService:
             True if Ollama is accessible, False otherwise
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.base_url}/api/tags", timeout=5.0)
-                return response.status_code == 200
+            client = self._get_client()
+            response = await client.get(
+                f"{self.base_url}/api/tags",
+                timeout=httpx.Timeout(5.0),
+            )
+            return response.status_code == 200
         except Exception:
             return False
 
