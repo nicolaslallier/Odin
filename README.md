@@ -1,6 +1,6 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.1-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -18,6 +18,7 @@ Odin is a Python development environment configured for senior-level development
 
 ## Features
 
+- **Web Interface**: Modern FastAPI-based web application with Jinja2 templates
 - Python 3.12 development environment
 - Multi-service Docker infrastructure (nginx, PostgreSQL, RabbitMQ, MinIO, Vault, Ollama, n8n)
 - Comprehensive testing framework (pytest with coverage)
@@ -207,6 +208,7 @@ The Odin development environment includes the following services:
 | Service | Port | Access URL | Description |
 |---------|------|------------|-------------|
 | **nginx** | 80 | http://localhost/ | Reverse proxy for all services |
+| **Odin Web Portal** | internal | http://localhost/ | FastAPI web interface (via nginx) |
 | **Ollama** | 11434 | http://localhost/ollama/ | AI/ML model server |
 | **PostgreSQL** | 5432 | Direct connection | Relational database |
 | **n8n** | 5678 | http://localhost/n8n/ | Workflow automation platform |
@@ -220,6 +222,14 @@ The Odin development environment includes the following services:
 - Entry point for all services
 - Routes requests to appropriate backend services
 - Health check endpoint: http://localhost/health
+
+#### Odin Web Portal
+- FastAPI-based web interface
+- Jinja2 templating engine for HTML rendering
+- Served at: http://localhost/ (root path via nginx)
+- Built with TDD and SOLID principles
+- Features: "Hello World" landing page with modern UI
+- Container name: `portal`
 
 #### Ollama
 - AI/ML model server for running local LLMs
@@ -288,6 +298,7 @@ cp env.example .env
 ```
 
 Key environment variables:
+- `WEB_HOST`, `WEB_PORT`, `WEB_RELOAD`, `WEB_LOG_LEVEL` - Web application configuration
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` - PostgreSQL configuration
 - `N8N_USER`, `N8N_PASSWORD` - n8n credentials
 - `RABBITMQ_USER`, `RABBITMQ_PASSWORD` - RabbitMQ credentials

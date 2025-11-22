@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Odin{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>{{ message }}</h1>
+    <p class="subtitle">Welcome to the Odin Web Interface</p>
+    <p class="description">
+        This is a modern web application built with FastAPI, following Test-Driven Development (TDD)
+        and SOLID principles. Version {{ version }}.
+    </p>
+    <div class="features">
+        <div class="feature-card">
+            <h3>🚀 FastAPI</h3>
+            <p>Modern, fast web framework with automatic API documentation</p>
+        </div>
+        <div class="feature-card">
+            <h3>🧪 TDD</h3>
+            <p>100% test coverage with comprehensive unit and integration tests</p>
+        </div>
+        <div class="feature-card">
+            <h3>📐 SOLID</h3>
+            <p>Clean architecture following SOLID design principles</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

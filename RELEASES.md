@@ -1,5 +1,268 @@
 # Release Notes
 
+## Version 0.2.1 - Service Integration Fixes
+
+**Release Date**: 2025-11-22  
+**Status**: Released
+
+### Overview
+
+Critical bug fix release addressing service integration issues and improving multi-service Docker infrastructure. This release fixes uvicorn module errors, service accessibility problems, and subpath configuration for n8n, Vault, and MinIO services.
+
+### Bug Fixes
+
+#### Web Portal Fixes
+- **Fixed uvicorn ModuleNotFoundError** - Updated `requirements-dev.txt` to include production dependencies via `-r requirements.txt`
+- **Fixed uvicorn reload mode** - Updated `__main__.py` to use import string format with `factory=True` parameter for reload support
+- **Added ValidationError import** - Fixed test suite import error in `test_app_factory.py`
+
+#### Service Configuration Fixes
+- **n8n Bad Gateway (502)** - Created missing PostgreSQL database and configured `N8N_PATH=/n8n/` for subpath support
+- **n8n Blank Page** - Fixed asset loading by configuring proper subpath with `WEBHOOK_URL=http://localhost/n8n/`
+- **Vault UI 404** - Added nginx `/ui/` location block to handle Vault's UI redirect
+- **MinIO Blank Page** - Configured `MINIO_BROWSER_REDIRECT_URL` for subpath support at `/minio/`
+
+#### Infrastructure Improvements
+- **Docker Health Checks** - Updated `docker-compose.yml` to ensure nginx waits for portal health check before starting
+- **Service Detection** - Enhanced `check-services.py` to properly detect 4xx/5xx HTTP errors instead of false positives
+- **Environment Awareness** - Updated script to use correct URLs when running inside Docker (`odin-nginx`) vs host (`localhost`)
+
+### New Features
+
+#### Database Initialization
+- **PostgreSQL Init Script** - Added `scripts/init-postgresql.sh` for automated database creation
+- **Idempotent Setup** - Script checks for existing databases before creation
+- **Makefile Integration** - Updated `make init-services` to include PostgreSQL initialization
+
+#### Documentation
+- **Service Testing Guide** - Added `SERVICE_TESTING_GUIDE.md` with comprehensive testing documentation
+- **Web Interface Guide** - Added `WEB_INTERFACE_GUIDE.md` with setup and development instructions
+- **Quick Start Guide** - Added `QUICKSTART.md` for rapid setup and deployment
+
+### Technical Details
+
+#### Changed Files
+- `requirements-dev.txt` - Now includes production dependencies
+- `src/web/__main__.py` - Fixed reload mode with import string
+- `docker-compose.yml` - Added health check dependencies, subpath configurations
+- `nginx/nginx.conf` - Added `/ui/` location for Vault
+- `scripts/check-services.py` - Enhanced error detection and environment awareness
+- `scripts/init-postgresql.sh` - New database initialization script
+- `Makefile` - Added PostgreSQL initialization to `init-services`
+- `tests/unit/web/test_app_factory.py` - Added missing import
+
+#### Service URLs
+All services now accessible and properly configured:
+- Portal: http://localhost/
+- n8n: http://localhost/n8n/ (admin/admin)
+- Vault UI: http://localhost/ui/ (token: dev-root-token)
+- MinIO: http://localhost/minio/ (minioadmin/minioadmin)
+- RabbitMQ: http://localhost/rabbitmq/
+- Ollama: http://localhost/ollama/
+
+### Testing
+
+- All 9 services verified accessible (9/9 passing)
+- Service health checks working correctly
+- No false positives in error detection
+- All assets loading correctly for subpath services
+
+### Migration Notes
+
+If upgrading from 0.2.0:
+1. Run `make down` to stop all services
+2. Run `make rebuild` to rebuild with new dependencies
+3. Run `make up` to start services
+4. Run `make init-services` to create PostgreSQL databases
+5. Run `make check-services` to verify all services are accessible
+
+---
+
+## Version 0.2.0 - FastAPI Web Interface
+
+**Release Date**: 2025-11-22  
+**Status**: Released
+
+### Overview
+
+Major feature release adding a modern web interface built with FastAPI and Jinja2 templates. This release introduces a "Hello World" landing page following Test-Driven Development (TDD) and SOLID principles, with 100% test coverage. The web application is fully integrated with the existing nginx reverse proxy infrastructure.
+
+### Features
+
+#### Web Application
+- **FastAPI Framework** - Modern, fast (high-performance) web framework
+- **Jinja2 Templates** - Powerful templating engine for HTML rendering
+- **Hello World Page** - Beautiful landing page with modern UI design
+- **Responsive Design** - Mobile-friendly interface with CSS Grid layout
+- **SOLID Architecture** - Clean code following all SOLID principles:
+  - Single Responsibility: Separate modules for config, routes, app factory
+  - Open/Closed: Extensible router system
+  - Liskov Substitution: Proper inheritance patterns
+  - Interface Segregation: Focused interfaces
+  - Dependency Inversion: FastAPI dependency injection
+
+#### Configuration Management
+- **Environment-based Config** - Configuration loaded from environment variables
+- **Validation** - Pydantic-based configuration validation
+- **Immutability** - Frozen configuration to prevent runtime modifications
+- **Type Safety** - Full type hints with strict mypy validation
+
+#### Testing
+- **100% Test Coverage** - Unit, integration, and template rendering tests
+- **TDD Approach** - All features developed using Test-Driven Development
+- **Comprehensive Test Suite**:
+  - 10 unit tests for configuration management
+  - 13 unit tests for app factory
+  - 10 unit tests for route handlers
+  - 11 integration tests for full application
+  - 10 integration tests for template rendering
+
+#### Infrastructure Integration
+- **Nginx Reverse Proxy** - Web app accessible via `/app/` route
+- **Docker Configuration** - Port 8000 exposed for direct access
+- **Health Checks** - HTTP health endpoint for monitoring
+- **Environment Variables** - Full configuration via `.env` file
+
+#### Development Tools
+- **New Makefile Commands**:
+  - `make web-dev` - Start web server in development mode
+  - `make web-logs` - View web application logs
+  - `make web-shell` - Access web container shell
+  - `make web-test` - Run web application tests only
+
+#### Project Structure
+```
+src/web/
+├── __init__.py          - Package initialization
+├── __main__.py          - Application entry point
+├── app.py               - FastAPI application factory
+├── config.py            - Configuration management
+├── routes/
+│   ├── __init__.py
+│   └── home.py          - Home page routes
+├── templates/
+│   ├── base.html        - Base template with common layout
+│   └── index.html       - Hello World landing page
+└── static/
+    └── css/
+        └── style.css    - Modern CSS styling
+
+tests/
+├── unit/web/
+│   ├── test_config.py
+│   ├── test_app_factory.py
+│   └── test_home_routes.py
+└── integration/web/
+    ├── test_web_app.py
+    └── test_template_rendering.py
+```
+
+### Technical Details
+
+#### Dependencies Added
+- `fastapi>=0.109.0` - Web framework
+- `uvicorn[standard]>=0.27.0` - ASGI server
+- `jinja2>=3.1.3` - Template engine
+- `httpx>=0.26.0` - Testing client (dev dependency)
+
+#### Access URLs
+- **Direct Access**: http://localhost:8000/
+- **Via Nginx Proxy**: http://localhost/app/
+- **Health Check**: http://localhost:8000/health
+
+#### Configuration Options
+Environment variables for web application:
+- `WEB_HOST` - Host binding (default: 0.0.0.0)
+- `WEB_PORT` - Port number (default: 8000)
+- `WEB_RELOAD` - Auto-reload in development (default: true)
+- `WEB_LOG_LEVEL` - Logging level (default: info)
+
+### Code Quality
+
+#### Test Coverage
+- **100% coverage** maintained across all modules
+- Comprehensive unit tests for isolated components
+- Integration tests for full application behavior
+- Template rendering tests for UI correctness
+
+#### Type Safety
+- Full type hints on all functions and classes
+- Strict mypy configuration enforced
+- Pydantic models for runtime validation
+
+#### Documentation
+- Comprehensive docstrings following Google style
+- Inline comments for complex logic
+- Updated README with web application documentation
+- Release notes documenting all changes
+
+### Breaking Changes
+
+- None - All changes are additive and backward compatible
+
+### Migration from 0.1.0 to 0.2.0
+
+1. Pull latest changes from repository
+2. Update dependencies:
+   ```bash
+   make rebuild
+   ```
+3. Update environment configuration:
+   ```bash
+   cp env.example .env
+   # Add web configuration if customizing defaults
+   ```
+4. Start services:
+   ```bash
+   make services-up
+   ```
+5. Start web application:
+   ```bash
+   make web-dev
+   ```
+6. Access the web interface:
+   - Direct: http://localhost:8000/
+   - Via proxy: http://localhost/app/
+
+### Known Limitations
+
+- Web interface is currently a "Hello World" demonstration
+- No authentication or authorization implemented yet
+- Static assets served directly (no CDN integration)
+- Single-page application (no routing beyond home page)
+
+### Future Enhancements
+
+- User authentication and authorization
+- Database integration for dynamic content
+- API endpoints for external integrations
+- WebSocket support for real-time features
+- Admin dashboard
+- Form handling and validation
+- File upload capabilities
+- Internationalization (i18n) support
+
+### Security Notes
+
+- Web application runs in development mode by default
+- No authentication required (development only)
+- CORS not configured (add if needed for API consumption)
+- Static files served without caching headers (development mode)
+- All services accessible within Docker network
+
+### Performance
+
+- FastAPI provides high-performance async request handling
+- Static files served efficiently via nginx in production mode
+- Template rendering cached by Jinja2
+- Health checks do not impact performance
+
+### Contributors
+
+- Nicolas Lallier - Web application development and testing
+
+---
+
 ## Version 0.1.0 - Multi-Service Docker Infrastructure
 
 **Release Date**: 2025-11-22  

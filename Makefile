@@ -2,6 +2,7 @@
         test test-unit test-integration test-regression test-watch coverage \
         lint format type-check quality check-all \
         services-up services-down services-restart services-logs services-status services-health \
+        web-dev web-logs web-shell web-test \
         db-shell db-migrate db-reset \
         init-env init-services backup restore \
         docker-prune docker-clean
@@ -17,7 +18,7 @@ NC := \033[0m # No Color
 DOCKER_COMPOSE = docker-compose
 DOCKER = docker
 PYTHON = python
-CONTAINER_NAME = odin-dev
+CONTAINER_NAME = portal
 SERVICES = nginx ollama postgresql n8n rabbitmq vault minio
 
 # Default target
@@ -37,20 +38,23 @@ help:
 	@echo "  make init-services   - Initialize services (Vault, MinIO buckets)"
 	@echo ""
 	@echo "$(GREEN)🚀 Container Management:$(NC)"
-	@echo "  make up              - Start all containers"
+	@echo "  make up              - Start all containers (portal auto-starts web server)"
 	@echo "  make down            - Stop all containers"
 	@echo "  make restart         - Restart all containers"
 	@echo "  make ps              - Show running containers"
 	@echo "  make logs            - View logs from all containers"
-	@echo "  make shell           - Access app container shell"
+	@echo "  make shell           - Access portal container shell (keeps web server running)"
+	@echo "  make shell-dev       - Start portal in interactive shell mode (no web server)"
 	@echo ""
 	@echo "$(GREEN)🧪 Testing:$(NC)"
 	@echo "  make test            - Run all tests"
 	@echo "  make test-unit       - Run unit tests only"
 	@echo "  make test-integration - Run integration tests only"
 	@echo "  make test-regression - Run regression tests only"
+	@echo "  make test-services   - Run service accessibility tests"
 	@echo "  make test-watch      - Run tests in watch mode"
 	@echo "  make coverage        - Generate coverage report (HTML + terminal)"
+	@echo "  make check-services  - Check which services are accessible (diagnostic)"
 	@echo ""
 	@echo "$(GREEN)🔍 Code Quality:$(NC)"
 	@echo "  make lint            - Run linting (ruff)"
@@ -66,6 +70,12 @@ help:
 	@echo "  make services-logs   - View logs from all services"
 	@echo "  make services-status - Show service status"
 	@echo "  make services-health - Check service health"
+	@echo ""
+	@echo "$(GREEN)🌐 Web Application:$(NC)"
+	@echo "  make web-dev         - Start web server in development mode"
+	@echo "  make web-logs        - View web application logs"
+	@echo "  make web-shell       - Access web container shell"
+	@echo "  make web-test        - Run web application tests only"
 	@echo ""
 	@echo "$(GREEN)🗄️  Database:$(NC)"
 	@echo "  make db-shell        - Access PostgreSQL shell"
@@ -92,12 +102,12 @@ help:
 # Initial project setup
 setup: build init-env
 	@echo "$(GREEN)✓ Setting up development environment...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app pip install -r requirements-dev.txt
+	@$(DOCKER_COMPOSE) run --rm portal pip install -r requirements-dev.txt
 	@echo "$(GREEN)✓ Setup complete!$(NC)"
 	@echo "$(YELLOW)Next steps:$(NC)"
 	@echo "  1. Edit .env with your configuration"
-	@echo "  2. Run 'make services-up' to start services"
-	@echo "  3. Run 'make init-services' to initialize services"
+	@echo "  2. Run 'make up' to start all services"
+	@echo "  3. Access portal at: http://localhost/"
 
 # Build Docker images
 build:
@@ -125,6 +135,10 @@ init-env:
 # Initialize services (Vault, MinIO)
 init-services:
 	@echo "$(GREEN)Initializing services...$(NC)"
+	@if [ -f ./scripts/init-postgresql.sh ]; then \
+		echo "$(BLUE)Initializing PostgreSQL...$(NC)"; \
+		./scripts/init-postgresql.sh; \
+	fi
 	@if [ -f ./scripts/init-vault.sh ]; then \
 		echo "$(BLUE)Initializing Vault...$(NC)"; \
 		./scripts/init-vault.sh; \
@@ -169,10 +183,15 @@ logs:
 	@echo "$(BLUE)Viewing logs (Ctrl+C to exit)...$(NC)"
 	@$(DOCKER_COMPOSE) logs -f
 
-# Access app container shell
+# Access app container shell (portal will keep running)
 shell:
-	@echo "$(GREEN)Accessing app container shell...$(NC)"
-	@$(DOCKER_COMPOSE) exec app /bin/bash || $(DOCKER_COMPOSE) run --rm app /bin/bash
+	@echo "$(GREEN)Accessing portal container shell...$(NC)"
+	@$(DOCKER_COMPOSE) exec portal /bin/bash
+
+# Start portal in interactive mode (shell instead of web server)
+shell-dev:
+	@echo "$(GREEN)Starting portal in development shell mode...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml run --rm portal /bin/bash
 
 # ============================================================================
 # Testing
@@ -181,36 +200,47 @@ shell:
 # Run all tests
 test:
 	@echo "$(BLUE)Running all tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app pytest tests/ -v
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/ -v
 	@echo "$(GREEN)✓ Tests complete!$(NC)"
 
 # Run unit tests only
 test-unit:
 	@echo "$(BLUE)Running unit tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app pytest tests/unit/ -v -m unit
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/ -v -m unit
 	@echo "$(GREEN)✓ Unit tests complete!$(NC)"
 
 # Run integration tests only
 test-integration:
 	@echo "$(BLUE)Running integration tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app pytest tests/integration/ -v -m integration
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/integration/ -v -m integration
 	@echo "$(GREEN)✓ Integration tests complete!$(NC)"
 
 # Run regression tests
 test-regression:
 	@echo "$(BLUE)Running regression tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app pytest tests/regression/ -v -m regression
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/regression/ -v -m regression
 	@echo "$(GREEN)✓ Regression tests complete!$(NC)"
+
+# Run service accessibility regression tests
+test-services:
+	@echo "$(BLUE)Running service accessibility tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/regression/test_service_accessibility.py -v
+	@echo "$(GREEN)✓ Service accessibility tests complete!$(NC)"
+
+# Check service accessibility (diagnostic tool)
+check-services:
+	@echo "$(BLUE)Checking service accessibility...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal python scripts/check-services.py
 
 # Run tests in watch mode
 test-watch:
 	@echo "$(BLUE)Running tests in watch mode (Ctrl+C to exit)...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app pytest-watch tests/ -v
+	@$(DOCKER_COMPOSE) run --rm portal pytest-watch tests/ -v
 
 # Generate coverage report
 coverage:
 	@echo "$(BLUE)Generating coverage report...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app pytest tests/ --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/ --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml
 	@echo "$(GREEN)✓ Coverage report generated!$(NC)"
 	@echo "$(YELLOW)HTML report: htmlcov/index.html$(NC)"
 
@@ -221,19 +251,19 @@ coverage:
 # Run linting
 lint:
 	@echo "$(BLUE)Running linter (ruff)...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app ruff check src/ tests/
+	@$(DOCKER_COMPOSE) run --rm portal ruff check src/ tests/
 	@echo "$(GREEN)✓ Linting complete!$(NC)"
 
 # Format code
 format:
 	@echo "$(BLUE)Formatting code with black...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app black src/ tests/
+	@$(DOCKER_COMPOSE) run --rm portal black src/ tests/
 	@echo "$(GREEN)✓ Formatting complete!$(NC)"
 
 # Type checking
 type-check:
 	@echo "$(BLUE)Running type checker (mypy)...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app mypy src/
+	@$(DOCKER_COMPOSE) run --rm portal mypy src/
 	@echo "$(GREEN)✓ Type checking complete!$(NC)"
 
 # Quality check (runs all quality checks)
@@ -249,7 +279,7 @@ check-all: coverage quality
 # Install package in development mode
 install:
 	@echo "$(BLUE)Installing package in development mode...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm app pip install -e .
+	@$(DOCKER_COMPOSE) run --rm portal pip install -e .
 	@echo "$(GREEN)✓ Installation complete!$(NC)"
 
 # ============================================================================
@@ -355,6 +385,32 @@ services-health:
 	@echo ""
 	@echo "$(GREEN)Vault:$(NC)"
 	@curl -sf http://localhost:8200/v1/sys/health > /dev/null && echo "  $(GREEN)✓ Healthy$(NC)" || echo "  $(RED)✗ Unhealthy$(NC)"
+
+# ============================================================================
+# Web Application
+# ============================================================================
+
+# Start web server in development mode
+web-dev:
+	@echo "$(GREEN)Starting web server in development mode...$(NC)"
+	@echo "$(YELLOW)Access at: http://localhost/ (via nginx)$(NC)"
+	@$(DOCKER_COMPOSE) up portal
+
+# View web application logs
+web-logs:
+	@echo "$(BLUE)Viewing web application logs (Ctrl+C to exit)...$(NC)"
+	@$(DOCKER_COMPOSE) logs -f portal
+
+# Access web container shell
+web-shell:
+	@echo "$(GREEN)Accessing web container shell...$(NC)"
+	@$(DOCKER_COMPOSE) exec portal /bin/bash || $(DOCKER_COMPOSE) run --rm portal /bin/bash
+
+# Run web application tests only
+web-test:
+	@echo "$(BLUE)Running web application tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/web/ tests/integration/web/ -v
+	@echo "$(GREEN)✓ Web tests complete!$(NC)"
 
 # ============================================================================
 # Database Management

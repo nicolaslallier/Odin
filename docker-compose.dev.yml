@@ -1,0 +1,11 @@
+# Docker Compose override for development mode
+# Use this when you want an interactive shell instead of auto-starting the web server
+#
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  portal:
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+

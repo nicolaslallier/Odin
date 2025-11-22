@@ -1,23 +1,23 @@
-version: '3.8'
-
 services:
-  # Python application service
-  app:
+  # Python application service (web portal)
+  portal:
     build:
       context: .
       dockerfile: Dockerfile
       target: development
-    container_name: odin-dev
+    container_name: portal
     volumes:
       - .:/app
       - /app/.venv
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
+      - WEB_HOST=${WEB_HOST:-0.0.0.0}
+      - WEB_PORT=${WEB_PORT:-8000}
+      - WEB_RELOAD=${WEB_RELOAD:-true}
+      - WEB_LOG_LEVEL=${WEB_LOG_LEVEL:-info}
     working_dir: /app
-    stdin_open: true
-    tty: true
-    command: /bin/bash
+    command: python -m src.web
     networks:
       - odin-network
     depends_on:
@@ -25,6 +25,12 @@ services:
       - rabbitmq
       - vault
       - minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Nginx reverse proxy
   nginx:
@@ -37,12 +43,20 @@ services:
     networks:
       - odin-network
     depends_on:
-      - ollama
-      - postgresql
-      - n8n
-      - rabbitmq
-      - vault
-      - minio
+      portal:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+      postgresql:
+        condition: service_healthy
+      n8n:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      vault:
+        condition: service_started
+      minio:
+        condition: service_started
     restart: unless-stopped
 
   # Ollama AI/ML model server
@@ -93,7 +107,8 @@ services:
       - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
+      - N8N_PATH=/n8n/
+      - WEBHOOK_URL=http://localhost/n8n/
     volumes:
       - n8n-data:/home/node/.n8n
     networks:
@@ -138,6 +153,12 @@ services:
       - odin-network
     command: ["vault", "server", "-dev"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # MinIO object storage
   minio:
@@ -146,6 +167,7 @@ services:
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BROWSER_REDIRECT_URL=http://localhost/minio/
     volumes:
       - minio-data:/data
     networks:
@@ -153,10 +175,11 @@ services:
     command: server /data --console-address ":9001"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 30s
       timeout: 20s
       retries: 3
+      start_period: 20s
 
 volumes:
   postgresql-data:
