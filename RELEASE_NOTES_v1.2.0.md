@@ -23,6 +23,7 @@ Version 1.2.0 introduces a comprehensive centralized logging system that capture
 - **Correlation Tracking**: Click correlation IDs to view related logs across services
 - **Export Functionality**: Export logs to JSON for offline analysis
 - **Responsive Design**: Modern UI with color-coded log levels
+- **Browser API Access**: Proxy to backend via `/logs/proxy/api/v1/*` (see below)
 
 #### 3. LLM-Powered Analysis
 - **Root Cause Analysis**: AI identifies underlying causes of errors
@@ -32,9 +33,11 @@ Version 1.2.0 introduces a comprehensive centralized logging system that capture
 - **Actionable Recommendations**: Suggests fixes and preventive measures
 
 #### 4. REST API Endpoints
-- `GET /api/v1/logs` - Query logs with filters and pagination
+- `GET /api/v1/logs` - Query logs (DIRECT from backend)
+- `GET /logs/proxy/api/v1/logs` - Query logs (from browser)
 - `GET /api/v1/logs/search` - Full-text search in log messages
-- `GET /api/v1/logs/stats` - Aggregated statistics by level and service
+- `GET /api/v1/logs/stats` - Stats (DIRECT)
+- `GET /logs/proxy/api/v1/logs/stats` - Stats (browser via proxy)
 - `GET /api/v1/logs/correlate` - Find related logs by correlation IDs
 - `POST /api/v1/logs/analyze` - LLM-powered log analysis
 - `GET /api/v1/logs/{id}` - Get individual log entry
@@ -198,10 +201,20 @@ Navigate to: `http://localhost/logs`
 
 ## 📊 Usage Examples
 
-### View Recent Errors
+### Accessing Logs from the Browser (PROXY: `/logs/proxy`)
+
+**Important:** Browsers and frontend JavaScript must use the web proxy `/logs/proxy/api/v1/` for all API requests. Requests to `:8001` will not work from the browser.
+
+Example:
+```bash
+curl 'http://localhost/logs/proxy/api/v1/logs?level=ERROR&limit=5'
+curl 'http://localhost/logs/proxy/api/v1/logs/stats'
+```
+
+### Direct Backend Access (internal/admin only)
 
 ```bash
-curl "http://localhost:8001/api/v1/logs?level=ERROR&limit=50"
+curl 'http://localhost:8001/api/v1/logs?level=ERROR&limit=5'
 ```
 
 ### Search Logs
@@ -282,7 +295,11 @@ Potential future features:
 3. **Service Restart**: Restart all services
 4. **Verification**: Check `/logs` page and API endpoints
 
-**Breaking Changes:** None
+**Breaking Changes:** None, except all web log viewer calls must use `/logs/proxy` proxy path.
+
+### Known Issue (Fixed): Double /api in Proxy Path
+- Prior versions used `/logs/api` as base; browser requests would hit `/logs/api/api/v1/logs` (404)
+- Now, **base is `/logs/proxy`**—confirmed to work, avoids all double `/api` bugs.
 
 **Backward Compatibility:** Fully compatible with v1.1.0
 

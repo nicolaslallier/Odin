@@ -48,6 +48,20 @@ Odin is a Python development environment configured for senior-level development
 
 See [LOGGING_GUIDE.md](LOGGING_GUIDE.md) for complete documentation.
 
+### **New v1.2.0 Proxy API Base URL: `/logs/proxy`**
+    - Example: `/logs/proxy/api/v1/logs?level=ERROR`
+    - *Never* use `:8001` directly from the browser; always go through `/logs/proxy`.
+  
+### **Sample requests via proxy**
+
+```bash
+curl 'http://localhost/logs/proxy/api/v1/logs?limit=5'
+curl 'http://localhost/logs/proxy/api/v1/logs/stats'
+curl 'http://localhost/logs/proxy/api/v1/logs?level=ERROR&service=api'
+```
+
+If you see a 404 for `/api/api/v1/logs`, check the API base URL in the page: it should be `/logs/proxy`.
+
 ## 🎉 Version 1.0.0 Highlights
 
 This release represents a major milestone with comprehensive production-ready optimizations:
