@@ -43,7 +43,7 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     # Create FastAPI application
     app = FastAPI(
         title="Odin Web Interface",
-        version="0.4.2",
+        version="1.1.0",
         description="A modern web interface for the Odin project, "
         "built with FastAPI and following SOLID principles.",
     )
@@ -64,9 +64,11 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     # Register routes
     from src.web.routes.home import router as home_router
     from src.web.routes.tasks import router as tasks_router
+    from src.web.routes.health import router as health_router
 
     app.include_router(home_router)
     app.include_router(tasks_router)
+    app.include_router(health_router)
 
     # Add health check endpoint
     @app.get("/health")

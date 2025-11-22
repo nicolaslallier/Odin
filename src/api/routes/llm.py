@@ -5,26 +5,39 @@ This module provides endpoints for LLM operations via Ollama.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from src.api.config import APIConfig, get_config
+from src.api.exceptions import LLMError, ServiceUnavailableError
 from src.api.models.schemas import GenerateRequest, GenerateResponse, ModelListResponse
+from src.api.services.container import ServiceContainer
 from src.api.services.ollama import OllamaService
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 
 
-def get_ollama_service(config: APIConfig = Depends(get_config)) -> OllamaService:
+def get_container(request: Request) -> ServiceContainer:
+    """Dependency to get service container from app state.
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        Service container instance
+    """
+    return request.app.state.container
+
+
+def get_ollama_service(container: ServiceContainer = Depends(get_container)) -> OllamaService:
     """Dependency to get Ollama service instance.
 
     Args:
-        config: API configuration
+        container: Service container
 
     Returns:
         Ollama service instance
     """
-    return OllamaService(base_url=config.ollama_base_url)
+    return container.ollama
 
 
 @router.get("/models", response_model=ModelListResponse)
@@ -38,12 +51,17 @@ async def list_models(
 
     Returns:
         List of available models
+
+    Raises:
+        HTTPException: If listing fails
     """
     try:
         models = await ollama.list_models()
         return ModelListResponse(models=models)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ServiceUnavailableError as e:
+        raise HTTPException(status_code=503, detail=e.message)
+    except LLMError as e:
+        raise HTTPException(status_code=500, detail=e.message)
 
 
 @router.post("/generate", response_model=GenerateResponse)
@@ -59,6 +77,9 @@ async def generate_text(
 
     Returns:
         Generated text response
+
+    Raises:
+        HTTPException: If generation fails
     """
     try:
         response_text = await ollama.generate_text(
@@ -67,8 +88,10 @@ async def generate_text(
             system=request.system,
         )
         return GenerateResponse(model=request.model, response=response_text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ServiceUnavailableError as e:
+        raise HTTPException(status_code=503, detail=e.message)
+    except LLMError as e:
+        raise HTTPException(status_code=500, detail=e.message)
 
 
 @router.post("/stream")
@@ -84,6 +107,9 @@ async def generate_text_stream(
 
     Returns:
         Streaming response with generated text chunks
+
+    Raises:
+        HTTPException: If streaming fails
     """
     try:
         async def generate() -> bytes:
@@ -95,6 +121,6 @@ async def generate_text_stream(
                 yield chunk.encode("utf-8")
 
         return StreamingResponse(generate(), media_type="text/plain")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except (ServiceUnavailableError, LLMError) as e:
+        raise HTTPException(status_code=500, detail=e.message)
 

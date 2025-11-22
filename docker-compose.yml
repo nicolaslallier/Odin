@@ -16,6 +16,7 @@ services:
       - WEB_PORT=${WEB_PORT:-8000}
       - WEB_RELOAD=${WEB_RELOAD:-true}
       - WEB_LOG_LEVEL=${WEB_LOG_LEVEL:-info}
+      - API_BASE_URL=${API_BASE_URL:-http://odin-api:8001}
     working_dir: /app
     command: python -m src.web
     networks:
@@ -27,10 +28,19 @@ services:
       - minio
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 60s
+      timeout: 5s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    restart: unless-stopped
 
   # API service (internal only, not exposed via nginx)
   api:
@@ -49,7 +59,7 @@ services:
       - API_PORT=${API_PORT:-8001}
       - API_RELOAD=${API_RELOAD:-true}
       - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
-      - POSTGRES_DSN=postgresql://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -70,10 +80,19 @@ services:
       - ollama
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 60s
+      timeout: 5s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
 
   # Nginx reverse proxy
   nginx:
@@ -243,6 +262,10 @@ services:
       - CELERY_TASK_TIME_LIMIT=${CELERY_TASK_TIME_LIMIT:-3600}
       - CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-4}
       - CELERY_WORKER_MAX_TASKS_PER_CHILD=${CELERY_WORKER_MAX_TASKS_PER_CHILD:-1000}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_SECURE=false
     working_dir: /app
     command: celery -A src.worker.celery_app:celery_app worker --loglevel=info
     networks:
@@ -252,6 +275,14 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     restart: unless-stopped
 
   # Celery Beat scheduler for periodic tasks

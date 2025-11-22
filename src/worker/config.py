@@ -23,6 +23,10 @@ class WorkerConfig(BaseSettings):
         task_time_limit: Maximum execution time for tasks in seconds
         worker_concurrency: Number of concurrent worker processes
         worker_max_tasks_per_child: Maximum tasks per worker before restart
+        minio_endpoint: MinIO server endpoint
+        minio_access_key: MinIO access key
+        minio_secret_key: MinIO secret key
+        minio_secure: Whether to use HTTPS for MinIO connection
     """
 
     # Broker and Backend Settings
@@ -38,6 +42,12 @@ class WorkerConfig(BaseSettings):
     worker_max_tasks_per_child: int = Field(
         default=1000, alias="CELERY_WORKER_MAX_TASKS_PER_CHILD"
     )
+
+    # MinIO Settings (for batch tasks)
+    minio_endpoint: str = Field(default="minio:9000", alias="MINIO_ENDPOINT")
+    minio_access_key: str = Field(default="minioadmin", alias="MINIO_ACCESS_KEY")
+    minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
+    minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
 
     model_config = SettingsConfigDict(
         env_file=".env",

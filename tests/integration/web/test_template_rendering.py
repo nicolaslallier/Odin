@@ -47,7 +47,7 @@ class TestTemplateRendering:
         response = client.get("/")
 
         content = response.text
-        assert "0.4.2" in content
+        assert "1.1.0" in content
 
     def test_template_renders_features(self, client: TestClient) -> None:
         """Test that template renders feature cards."""
@@ -101,7 +101,7 @@ class TestTemplateRendering:
         # These should come from the route context
         assert "Welcome to Odin" in content or "Odin" in content
         assert "Hello World" in content or "Hello, World" in content
-        assert "0.4.2" in content
+        assert "1.1.0" in content
 
     def test_no_template_errors_in_response(self, client: TestClient) -> None:
         """Test that there are no template rendering errors."""

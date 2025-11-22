@@ -1,6 +1,6 @@
 # Odin Web Interface - Quick Start Guide
 
-## Version 0.2.0
+## Version 1.1.0
 
 This guide helps you get started with the newly implemented FastAPI web interface.
 
@@ -8,6 +8,7 @@ This guide helps you get started with the newly implemented FastAPI web interfac
 
 The Odin web interface is a modern, FastAPI-based web application featuring:
 - **Hello World** landing page with beautiful, responsive design
+- **Health Monitoring Dashboard** - Real-time system health monitoring with auto-refresh
 - **TDD Development** - Built with Test-Driven Development (100% coverage)
 - **SOLID Principles** - Clean architecture following all SOLID principles
 - **Production Ready** - Integrated with nginx reverse proxy
@@ -40,8 +41,9 @@ python -m src.web
 ### 3. Access the Application
 
 - **Direct Access**: http://localhost:8000/
-- **Via Nginx Proxy**: http://localhost/app/
+- **Via Nginx Proxy**: http://localhost/
 - **Health Check**: http://localhost:8000/health
+- **Health Dashboard**: http://localhost/health
 
 ## Available Commands
 
@@ -70,13 +72,18 @@ src/web/
 ├── config.py            # Configuration management (Pydantic)
 ├── routes/
 │   ├── __init__.py
-│   └── home.py          # Home page route handlers
+│   ├── home.py          # Home page route handlers
+│   ├── health.py        # Health monitoring route handlers
+│   └── tasks.py         # Task management route handlers
 ├── templates/
 │   ├── base.html        # Base template with layout
-│   └── index.html       # Hello World landing page
+│   ├── index.html       # Hello World landing page
+│   └── health.html      # Health monitoring dashboard
 └── static/
-    └── css/
-        └── style.css    # Modern CSS styling
+    ├── css/
+    │   └── style.css    # Modern CSS styling
+    └── js/
+        └── health.js    # Health dashboard auto-refresh
 
 tests/
 ├── unit/web/            # Unit tests (isolated components)
@@ -88,6 +95,46 @@ tests/
     └── test_template_rendering.py
 ```
 
+## Features
+
+### Health Monitoring Dashboard
+
+The health monitoring dashboard (http://localhost/health) provides real-time visibility into all Odin services:
+
+**Infrastructure Services Monitored:**
+- PostgreSQL (database)
+- RabbitMQ (message queue)
+- Vault (secrets management)
+- MinIO (object storage)
+- Ollama (LLM service)
+
+**Application Services Monitored:**
+- Portal (web interface)
+- API (internal REST API)
+- Worker (Celery worker)
+- Beat (Celery scheduler)
+- Flower (task monitoring)
+
+**Circuit Breaker States:**
+- Real-time circuit breaker status for fault detection
+- Shows closed, open, or half-open states
+- Helps diagnose service connectivity issues
+
+**Dashboard Features:**
+- Color-coded status indicators (green = healthy, red = unhealthy)
+- Auto-refresh every 30 seconds (can be toggled on/off)
+- Manual refresh button
+- Last updated timestamp
+- Responsive card-based layout
+- User preference persistence (auto-refresh setting saved in localStorage)
+
+**Usage:**
+1. Navigate to http://localhost/health
+2. View real-time status of all services
+3. Toggle auto-refresh on/off as needed
+4. Click "Refresh Now" for immediate updates
+5. Check circuit breaker states for debugging
+
 ## Configuration
 
 Configure the web application via environment variables in `.env`:
@@ -97,6 +144,7 @@ WEB_HOST=0.0.0.0          # Host to bind to
 WEB_PORT=8000             # Port to listen on
 WEB_RELOAD=true           # Enable auto-reload (development)
 WEB_LOG_LEVEL=info        # Logging level (debug, info, warning, error, critical)
+API_BASE_URL=http://odin-api:8001  # Base URL for API service (for health checks)
 ```
 
 ## Development Workflow

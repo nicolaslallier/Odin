@@ -39,7 +39,7 @@ async def home(request: Request) -> HTMLResponse:
     context = {
         "title": "Welcome to Odin",
         "message": "Hello World",
-        "version": "0.4.2",
+        "version": "1.1.0",
     }
     return templates.TemplateResponse(request, "index.html", context)
 

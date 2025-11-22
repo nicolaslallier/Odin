@@ -23,6 +23,7 @@ class WebConfig(BaseModel):
         port: The port number to bind the server to
         reload: Whether to enable auto-reload in development mode
         log_level: The logging level for the application
+        api_base_url: The base URL for the API service
     """
 
     host: str = Field(default="0.0.0.0", description="Host address to bind to")
@@ -30,6 +31,9 @@ class WebConfig(BaseModel):
     reload: bool = Field(default=False, description="Enable auto-reload for development")
     log_level: Literal["debug", "info", "warning", "error", "critical"] = Field(
         default="info", description="Logging level"
+    )
+    api_base_url: str = Field(
+        default="http://odin-api:8001", description="Base URL for API service"
     )
 
     model_config = ConfigDict(frozen=True)  # Makes the config immutable
@@ -58,6 +62,7 @@ def get_config() -> WebConfig:
         WEB_PORT: Port number (default: 8000)
         WEB_RELOAD: Auto-reload flag (default: false)
         WEB_LOG_LEVEL: Log level (default: info)
+        API_BASE_URL: Base URL for API service (default: http://odin-api:8001)
 
     Returns:
         WebConfig instance with values from environment or defaults
@@ -72,5 +77,6 @@ def get_config() -> WebConfig:
         port=int(os.environ.get("WEB_PORT", "8000")),
         reload=os.environ.get("WEB_RELOAD", "false").lower() in ("true", "1", "yes"),
         log_level=os.environ.get("WEB_LOG_LEVEL", "info"),
+        api_base_url=os.environ.get("API_BASE_URL", "http://odin-api:8001"),
     )
 

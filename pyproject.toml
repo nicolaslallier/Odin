@@ -52,10 +52,12 @@ addopts = [
     "--cov-fail-under=93",
 ]
 markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "regression: Regression tests",
-    "slow: Slow running tests",
+    "unit: Unit tests for isolated components",
+    "integration: Integration tests for component interactions",
+    "regression: Regression tests to prevent bugs from reoccurring",
+    "performance: Performance and load tests",
+    "slow: Slow tests that take more than a few seconds",
+    "worker: Tests that require Celery worker",
 ]
 
 [tool.coverage.run]

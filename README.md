@@ -1,6 +1,6 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-0.4.3-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Tests](https://img.shields.io/badge/tests-131%20passed-brightgreen.svg)
@@ -250,7 +250,14 @@ The Odin development environment includes the following services:
 - Jinja2 templating engine for HTML rendering
 - Served at: http://localhost/ (root path via nginx)
 - Built with TDD and SOLID principles
-- Features: "Hello World" landing page with modern UI
+- Features:
+  - "Hello World" landing page with modern UI
+  - **Health Monitoring Dashboard**: Real-time status of all services
+    - Infrastructure services (PostgreSQL, RabbitMQ, Vault, MinIO, Ollama)
+    - Application services (API, Worker, Beat, Flower, Portal)
+    - Circuit breaker states for fault detection
+    - Auto-refresh every 30 seconds (configurable)
+    - Manual refresh capability
 - Container name: `portal`
 
 #### Odin API Service
