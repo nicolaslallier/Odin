@@ -1,0 +1,146 @@
+"""MinIO storage service client.
+
+This module provides object storage operations using MinIO S3-compatible API
+for file management in the API service.
+"""
+
+from __future__ import annotations
+
+from io import BytesIO
+from typing import BinaryIO, Optional
+
+from minio import Minio
+from minio.error import S3Error
+
+
+class StorageService:
+    """MinIO storage service client.
+
+    This class provides file storage operations using MinIO's S3-compatible API.
+
+    Attributes:
+        endpoint: MinIO server endpoint
+        access_key: MinIO access key
+        secret_key: MinIO secret key
+        secure: Whether to use HTTPS
+    """
+
+    def __init__(self, endpoint: str, access_key: str, secret_key: str, secure: bool = False) -> None:
+        """Initialize storage service with MinIO credentials.
+
+        Args:
+            endpoint: MinIO server endpoint (e.g., minio:9000)
+            access_key: MinIO access key
+            secret_key: MinIO secret key
+            secure: Whether to use HTTPS for connection
+        """
+        self.endpoint = endpoint
+        self.access_key = access_key
+        self.secret_key = secret_key
+        self.secure = secure
+        self._client: Optional[Minio] = None
+
+    def get_client(self) -> Minio:
+        """Get or create the MinIO client.
+
+        Returns:
+            MinIO client instance
+        """
+        if self._client is None:
+            self._client = Minio(
+                endpoint=self.endpoint,
+                access_key=self.access_key,
+                secret_key=self.secret_key,
+                secure=self.secure,
+            )
+        return self._client
+
+    def bucket_exists(self, bucket_name: str) -> bool:
+        """Check if a bucket exists.
+
+        Args:
+            bucket_name: Name of the bucket to check
+
+        Returns:
+            True if bucket exists, False otherwise
+        """
+        client = self.get_client()
+        return client.bucket_exists(bucket_name)
+
+    def create_bucket(self, bucket_name: str) -> None:
+        """Create a new bucket.
+
+        Args:
+            bucket_name: Name of the bucket to create
+        """
+        client = self.get_client()
+        if not self.bucket_exists(bucket_name):
+            client.make_bucket(bucket_name)
+
+    def upload_file(self, bucket_name: str, object_name: str, data: BinaryIO, length: int) -> None:
+        """Upload a file to bucket.
+
+        Args:
+            bucket_name: Name of the bucket
+            object_name: Name of the object to create
+            data: File-like object containing data
+            length: Length of data in bytes
+        """
+        client = self.get_client()
+        client.put_object(bucket_name, object_name, data, length)
+
+    def download_file(self, bucket_name: str, object_name: str) -> bytes:
+        """Download a file from bucket.
+
+        Args:
+            bucket_name: Name of the bucket
+            object_name: Name of the object to download
+
+        Returns:
+            File contents as bytes
+        """
+        client = self.get_client()
+        response = client.get_object(bucket_name, object_name)
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()
+
+    def delete_file(self, bucket_name: str, object_name: str) -> None:
+        """Delete a file from bucket.
+
+        Args:
+            bucket_name: Name of the bucket
+            object_name: Name of the object to delete
+        """
+        client = self.get_client()
+        client.remove_object(bucket_name, object_name)
+
+    def list_files(self, bucket_name: str, prefix: str = "") -> list[str]:
+        """List files in a bucket.
+
+        Args:
+            bucket_name: Name of the bucket
+            prefix: Optional prefix to filter objects
+
+        Returns:
+            List of object names
+        """
+        client = self.get_client()
+        objects = client.list_objects(bucket_name, prefix=prefix)
+        return [obj.object_name for obj in objects]
+
+    def health_check(self) -> bool:
+        """Check if MinIO connection is healthy.
+
+        Returns:
+            True if MinIO is accessible, False otherwise
+        """
+        try:
+            client = self.get_client()
+            client.list_buckets()
+            return True
+        except Exception:
+            return False
+

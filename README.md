@@ -1,6 +1,6 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-0.2.1-blue.svg)
+![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -18,6 +18,7 @@ Odin is a Python development environment configured for senior-level development
 
 ## Features
 
+- **Internal API Service**: FastAPI-based REST API with PostgreSQL, MinIO, RabbitMQ, Vault, and Ollama integrations
 - **Web Interface**: Modern FastAPI-based web application with Jinja2 templates
 - Python 3.12 development environment
 - Multi-service Docker infrastructure (nginx, PostgreSQL, RabbitMQ, MinIO, Vault, Ollama, n8n)
@@ -124,6 +125,19 @@ The project uses a Makefile for common development tasks:
 - `make quality` - Run all quality checks (lint, type-check, format)
 - `make test-full` - Run full test suite with coverage and quality checks
 
+#### Web Application
+- `make web-dev` - Start web server in development mode
+- `make web-logs` - View web application logs
+- `make web-shell` - Access web container shell
+- `make web-test` - Run web application tests only
+
+#### API Service
+- `make api-dev` - Start API server in development mode
+- `make api-logs` - View API service logs
+- `make api-shell` - Access API container shell
+- `make api-test` - Run API tests only
+- `make api-health` - Check API health
+
 #### Maintenance
 - `make clean` - Clean build artifacts and cache files
 - `make install` - Install package in development mode
@@ -209,6 +223,7 @@ The Odin development environment includes the following services:
 |---------|------|------------|-------------|
 | **nginx** | 80 | http://localhost/ | Reverse proxy for all services |
 | **Odin Web Portal** | internal | http://localhost/ | FastAPI web interface (via nginx) |
+| **Odin API** | 8001 | http://api:8001 (internal) | Internal REST API service |
 | **Ollama** | 11434 | http://localhost/ollama/ | AI/ML model server |
 | **PostgreSQL** | 5432 | Direct connection | Relational database |
 | **n8n** | 5678 | http://localhost/n8n/ | Workflow automation platform |
@@ -230,6 +245,21 @@ The Odin development environment includes the following services:
 - Built with TDD and SOLID principles
 - Features: "Hello World" landing page with modern UI
 - Container name: `portal`
+
+#### Odin API Service
+- Internal REST API for backend operations
+- Accessible only within Docker network at: http://api:8001
+- **Not exposed** through nginx (internal use only)
+- Built with TDD and SOLID principles, 100% test coverage
+- Container name: `odin-api`
+- Features:
+  - **Data Management**: CRUD operations
+  - **File Storage**: MinIO integration for S3-compatible storage
+  - **Message Queue**: RabbitMQ integration for async messaging
+  - **Secret Management**: Vault integration for secure secrets
+  - **LLM Operations**: Ollama integration for text generation
+  - **Health Checks**: Service status monitoring
+- Documentation: See `API_GUIDE.md` for detailed API documentation
 
 #### Ollama
 - AI/ML model server for running local LLMs
@@ -299,11 +329,15 @@ cp env.example .env
 
 Key environment variables:
 - `WEB_HOST`, `WEB_PORT`, `WEB_RELOAD`, `WEB_LOG_LEVEL` - Web application configuration
+- `API_HOST`, `API_PORT`, `API_RELOAD`, `API_LOG_LEVEL` - API service configuration
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` - PostgreSQL configuration
+- `POSTGRES_DSN` - Full PostgreSQL connection string (for API)
 - `N8N_USER`, `N8N_PASSWORD` - n8n credentials
 - `RABBITMQ_USER`, `RABBITMQ_PASSWORD` - RabbitMQ credentials
-- `VAULT_ROOT_TOKEN` - Vault root token
-- `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` - MinIO credentials
+- `RABBITMQ_URL` - Full RabbitMQ connection URL (for API)
+- `VAULT_ROOT_TOKEN`, `VAULT_ADDR` - Vault configuration
+- `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_ENDPOINT` - MinIO credentials
+- `OLLAMA_BASE_URL` - Ollama API base URL
 
 ### Volume Mounts
 

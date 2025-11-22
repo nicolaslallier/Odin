@@ -413,6 +413,37 @@ web-test:
 	@echo "$(GREEN)✓ Web tests complete!$(NC)"
 
 # ============================================================================
+# API Service
+# ============================================================================
+
+# Start API server in development mode
+api-dev:
+	@echo "$(GREEN)Starting API server in development mode...$(NC)"
+	@echo "$(YELLOW)API is internal only, accessible at: http://api:8001 (from within Docker network)$(NC)"
+	@$(DOCKER_COMPOSE) up api
+
+# View API service logs
+api-logs:
+	@echo "$(BLUE)Viewing API service logs (Ctrl+C to exit)...$(NC)"
+	@$(DOCKER_COMPOSE) logs -f api
+
+# Access API container shell
+api-shell:
+	@echo "$(GREEN)Accessing API container shell...$(NC)"
+	@$(DOCKER_COMPOSE) exec api /bin/bash || $(DOCKER_COMPOSE) run --rm api /bin/bash
+
+# Run API tests only
+api-test:
+	@echo "$(BLUE)Running API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm api pytest tests/unit/api/ tests/integration/api/ -v
+	@echo "$(GREEN)✓ API tests complete!$(NC)"
+
+# Check API health
+api-health:
+	@echo "$(BLUE)Checking API health...$(NC)"
+	@$(DOCKER_COMPOSE) exec api curl -f http://localhost:8001/health || echo "$(RED)API is not responding$(NC)"
+
+# ============================================================================
 # Database Management
 # ============================================================================
 
