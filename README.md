@@ -1,6 +1,6 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Tests](https://img.shields.io/badge/tests-131%20passed-brightgreen.svg)
@@ -22,6 +22,7 @@ Odin is a Python development environment configured for senior-level development
 
 - **Internal API Service**: FastAPI-based REST API with PostgreSQL, MinIO, RabbitMQ, Vault, and Ollama integrations
 - **Web Interface**: Modern FastAPI-based web application with Jinja2 templates
+- **Centralized Logging** (v1.2.0): PostgreSQL timeseries storage with LLM-powered log analysis and real-time web viewer
 - **Worker Service**: Celery-based background task processing with scheduled, batch, and event-driven tasks
 - **Task Monitoring**: Flower dashboard for real-time task monitoring and inspection
 - Python 3.12 development environment
@@ -33,6 +34,19 @@ Odin is a Python development environment configured for senior-level development
 - Code formatting with black
 - Linting with ruff
 - 100% test coverage enforcement
+
+## 🎉 Version 1.2.0 - Centralized Logging System
+
+**NEW**: Comprehensive centralized logging with LLM-powered analysis!
+
+- **📊 PostgreSQL Storage**: All application and infrastructure logs in timeseries tables
+- **🔍 Advanced Search**: Full-text search with filtering by level, service, time range
+- **🤖 AI Analysis**: LLM-powered root cause analysis, pattern detection, and anomaly detection
+- **📈 Real-time Viewer**: Web-based log viewer with auto-refresh and correlation tracking
+- **🧹 Auto-Cleanup**: Configurable retention policy with scheduled maintenance
+- **🔗 Correlation IDs**: Track requests and tasks across all services
+
+See [LOGGING_GUIDE.md](LOGGING_GUIDE.md) for complete documentation.
 
 ## 🎉 Version 1.0.0 Highlights
 
@@ -58,11 +72,12 @@ This release represents a major milestone with comprehensive production-ready op
 - **Performance Tests**: Load testing and scalability validation
 
 ### Documentation
+- **LOGGING_GUIDE.md**: Centralized logging system documentation (v1.2.0)
 - **FINAL_REPORT.md**: Executive summary of all optimizations
 - **OPTIMIZATION_SUMMARY.md**: Technical details and implementation guide
 - **WHATS_NEW.md**: Quick reference for new features
 
-See [FINAL_REPORT.md](FINAL_REPORT.md) for complete details.
+See [LOGGING_GUIDE.md](LOGGING_GUIDE.md) for logging features and [FINAL_REPORT.md](FINAL_REPORT.md) for complete details.
 
 ## Quick Start
 

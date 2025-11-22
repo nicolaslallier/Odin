@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs - Odin v1.2.0</title>
+    <link rel="stylesheet" href="/static/css/logs.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Application Logs</h1>
+            <div class="header-actions">
+                <button id="refreshBtn" class="btn btn-primary">↻ Refresh</button>
+                <label class="toggle-label">
+                    <input type="checkbox" id="autoRefresh" checked>
+                    <span>Auto-refresh (5s)</span>
+                </label>
+                <a href="/" class="btn btn-secondary">← Back to Home</a>
+            </div>
+        </header>
+
+        <!-- Filters Section -->
+        <div class="filters-section">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label for="levelFilter">Level:</label>
+                    <select id="levelFilter">
+                        <option value="">All Levels</option>
+                        <option value="DEBUG">DEBUG</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARNING">WARNING</option>
+                        <option value="ERROR">ERROR</option>
+                        <option value="CRITICAL">CRITICAL</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="serviceFilter">Service:</label>
+                    <select id="serviceFilter">
+                        <option value="">All Services</option>
+                        <option value="api">API</option>
+                        <option value="worker">Worker</option>
+                        <option value="web">Web</option>
+                        <option value="nginx">Nginx</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="searchInput">Search:</label>
+                    <input type="text" id="searchInput" placeholder="Search messages...">
+                </div>
+
+                <button id="applyFilters" class="btn btn-primary">Apply Filters</button>
+                <button id="clearFilters" class="btn btn-secondary">Clear</button>
+            </div>
+
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label for="startTime">Start Time:</label>
+                    <input type="datetime-local" id="startTime">
+                </div>
+
+                <div class="filter-group">
+                    <label for="endTime">End Time:</label>
+                    <input type="datetime-local" id="endTime">
+                </div>
+
+                <div class="filter-group">
+                    <label for="limitInput">Limit:</label>
+                    <input type="number" id="limitInput" value="100" min="1" max="1000">
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div id="statsSection" class="stats-section">
+            <div class="stat-card">
+                <div class="stat-label">Total Logs</div>
+                <div class="stat-value" id="statTotal">-</div>
+            </div>
+            <div class="stat-card stat-debug">
+                <div class="stat-label">DEBUG</div>
+                <div class="stat-value" id="statDebug">-</div>
+            </div>
+            <div class="stat-card stat-info">
+                <div class="stat-label">INFO</div>
+                <div class="stat-value" id="statInfo">-</div>
+            </div>
+            <div class="stat-card stat-warning">
+                <div class="stat-label">WARNING</div>
+                <div class="stat-value" id="statWarning">-</div>
+            </div>
+            <div class="stat-card stat-error">
+                <div class="stat-label">ERROR</div>
+                <div class="stat-value" id="statError">-</div>
+            </div>
+            <div class="stat-card stat-critical">
+                <div class="stat-label">CRITICAL</div>
+                <div class="stat-value" id="statCritical">-</div>
+            </div>
+        </div>
+
+        <!-- Actions Bar -->
+        <div class="actions-bar">
+            <button id="analyzeBtn" class="btn btn-accent" disabled>🤖 Analyze with AI</button>
+            <button id="exportBtn" class="btn btn-secondary">💾 Export</button>
+            <div class="pagination-info">
+                <span id="paginationInfo">Loading...</span>
+            </div>
+            <div class="pagination-controls">
+                <button id="prevPage" class="btn btn-secondary" disabled>← Previous</button>
+                <button id="nextPage" class="btn btn-secondary" disabled>Next →</button>
+            </div>
+        </div>
+
+        <!-- Logs Table -->
+        <div class="logs-container">
+            <table class="logs-table">
+                <thead>
+                    <tr>
+                        <th class="col-select">
+                            <input type="checkbox" id="selectAll">
+                        </th>
+                        <th class="col-timestamp">Timestamp</th>
+                        <th class="col-level">Level</th>
+                        <th class="col-service">Service</th>
+                        <th class="col-message">Message</th>
+                        <th class="col-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="logsTableBody">
+                    <tr>
+                        <td colspan="6" class="loading-cell">Loading logs...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Log Detail Modal -->
+    <div id="logModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Log Details</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="logModalBody">
+                <!-- Log details will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button id="correlateBtn" class="btn btn-primary">View Related Logs</button>
+                <button class="btn btn-secondary modal-close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Modal -->
+    <div id="analysisModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>🤖 AI Log Analysis</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="analysisModalBody">
+                <div class="analysis-loading">Analyzing logs with AI...</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Pass initial values from template
+        window.API_BASE_URL = "{{ api_base_url }}";
+        window.INITIAL_LEVEL = "{{ initial_level or '' }}";
+        window.INITIAL_SERVICE = "{{ initial_service or '' }}";
+        window.INITIAL_START_TIME = "{{ initial_start_time or '' }}";
+        window.INITIAL_END_TIME = "{{ initial_end_time or '' }}";
+        window.INITIAL_SEARCH = "{{ initial_search or '' }}";
+    </script>
+    <script src="/static/js/logs.js"></script>
+</body>
+</html>
+

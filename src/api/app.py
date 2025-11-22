@@ -28,11 +28,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Yields:
         None
     """
-    # Configure structured logging
-    from src.api.logging_config import configure_logging
+    # Configure structured logging with database handler
+    from src.api.logging_config import configure_logging_with_db
+    import os
 
     config = app.state.config
-    configure_logging(level=config.log_level.upper(), use_json=True)
+    configure_logging_with_db(
+        level=config.log_level.upper(),
+        use_json=True,
+        db_dsn=config.postgres_dsn,
+        service_name="api",
+        db_min_level=os.environ.get("LOG_LEVEL_DB_MIN", "INFO"),
+        db_buffer_size=int(os.environ.get("LOG_BUFFER_SIZE", "100")),
+        db_buffer_timeout=float(os.environ.get("LOG_BUFFER_TIMEOUT", "5.0")),
+    )
 
     # Startup: Initialize services
     container = ServiceContainer(config)
@@ -93,6 +102,7 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     from src.api.routes.files import router as files_router
     from src.api.routes.health import router as health_router
     from src.api.routes.llm import router as llm_router
+    from src.api.routes.logs import router as logs_router
     from src.api.routes.messages import router as messages_router
     from src.api.routes.secrets import router as secrets_router
 
@@ -102,6 +112,7 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     app.include_router(messages_router)
     app.include_router(secrets_router)
     app.include_router(llm_router)
+    app.include_router(logs_router)
 
     return app
 

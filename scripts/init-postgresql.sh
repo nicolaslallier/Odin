@@ -54,6 +54,15 @@ else
     echo -e "${GREEN}✓ Database 'n8n' created${NC}"
 fi
 
+# Initialize logging schema in odin_db
+echo -e "${BLUE}Initializing logging schema...${NC}"
+if [ -f "scripts/init-logging.sql" ]; then
+    docker exec -i odin-postgresql psql -U odin -d odin_db < scripts/init-logging.sql
+    echo -e "${GREEN}✓ Logging schema initialized${NC}"
+else
+    echo -e "${YELLOW}Warning: scripts/init-logging.sql not found, skipping logging schema initialization${NC}"
+fi
+
 echo -e "${GREEN}✓ PostgreSQL initialization complete!${NC}"
 echo -e "${BLUE}Available databases:${NC}"
 docker exec odin-postgresql psql -U odin -d postgres -c "\l" | grep -E "odin_db|n8n|Name" || true

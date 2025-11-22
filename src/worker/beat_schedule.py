@@ -46,5 +46,17 @@ def get_beat_schedule() -> dict[str, dict[str, Any]]:
             "schedule": crontab(hour=0, minute=0),
             "options": {"expires": 3600},  # Expire after 1 hour
         },
+        # Cleanup old logs daily at 2 AM
+        "cleanup-old-logs": {
+            "task": "maintenance.cleanup_old_logs",
+            "schedule": crontab(hour=2, minute=30),
+            "options": {"expires": 7200},  # Expire after 2 hours
+        },
+        # Collect log statistics every hour
+        "log-statistics": {
+            "task": "maintenance.log_statistics",
+            "schedule": crontab(minute=15),  # Run at :15 past every hour
+            "options": {"expires": 3600},  # Expire after 1 hour
+        },
     }
 

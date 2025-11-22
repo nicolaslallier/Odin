@@ -6,6 +6,7 @@ instances, following the Open/Closed Principle (OCP) from SOLID.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -40,10 +41,26 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     if config is None:
         config = get_config()
 
+    # Configure structured logging with database support
+    from src.api.logging_config import configure_logging_with_db
+
+    # Get PostgreSQL DSN from environment
+    postgres_dsn = os.environ.get("POSTGRES_DSN")
+    if postgres_dsn:
+        configure_logging_with_db(
+            level=config.log_level.upper(),
+            use_json=True,
+            db_dsn=postgres_dsn,
+            service_name="web",
+            db_min_level=os.environ.get("LOG_LEVEL_DB_MIN", "INFO"),
+            db_buffer_size=int(os.environ.get("LOG_BUFFER_SIZE", "100")),
+            db_buffer_timeout=float(os.environ.get("LOG_BUFFER_TIMEOUT", "5.0")),
+        )
+
     # Create FastAPI application
     app = FastAPI(
         title="Odin Web Interface",
-        version="1.1.0",
+        version="1.2.0",
         description="A modern web interface for the Odin project, "
         "built with FastAPI and following SOLID principles.",
     )
@@ -65,10 +82,12 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     from src.web.routes.home import router as home_router
     from src.web.routes.tasks import router as tasks_router
     from src.web.routes.health import router as health_router
+    from src.web.routes.logs import router as logs_router
 
     app.include_router(home_router)
     app.include_router(tasks_router)
     app.include_router(health_router)
+    app.include_router(logs_router)
 
     # Add health check endpoint
     @app.get("/health")

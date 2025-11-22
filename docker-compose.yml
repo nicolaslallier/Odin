@@ -17,6 +17,11 @@ services:
       - WEB_RELOAD=${WEB_RELOAD:-true}
       - WEB_LOG_LEVEL=${WEB_LOG_LEVEL:-info}
       - API_BASE_URL=${API_BASE_URL:-http://odin-api:8001}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
     working_dir: /app
     command: python -m src.web
     networks:
@@ -68,6 +73,10 @@ services:
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
       - OLLAMA_BASE_URL=http://ollama:11434
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
     working_dir: /app
     command: python -m src.api
     networks:
@@ -266,6 +275,10 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_SECURE=false
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
     working_dir: /app
     command: celery -A src.worker.celery_app:celery_app worker --loglevel=info
     networks:

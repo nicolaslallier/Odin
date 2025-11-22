@@ -7,27 +7,35 @@ JSON output for better log aggregation.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 # Import the structured logging from API (DRY principle)
-from src.api.logging_config import StructuredFormatter, LoggerAdapter, get_logger as api_get_logger
+from src.api.logging_config import StructuredFormatter, LoggerAdapter, get_logger as api_get_logger, configure_logging_with_db
 
 
 def configure_worker_logging(
     level: str = "INFO",
     use_json: bool = True,
+    db_dsn: str | None = None,
 ) -> None:
-    """Configure structured logging for Celery workers.
+    """Configure structured logging for Celery workers with database handler.
 
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         use_json: Whether to use JSON formatting
+        db_dsn: Optional PostgreSQL DSN for database logging
     """
-    # Import here to avoid circular dependencies
-    from src.api.logging_config import configure_logging
-
-    # Use the shared logging configuration
-    configure_logging(level=level, use_json=use_json)
+    # Use the shared logging configuration with database support
+    configure_logging_with_db(
+        level=level,
+        use_json=use_json,
+        db_dsn=db_dsn,
+        service_name="worker",
+        db_min_level=os.environ.get("LOG_LEVEL_DB_MIN", "INFO"),
+        db_buffer_size=int(os.environ.get("LOG_BUFFER_SIZE", "100")),
+        db_buffer_timeout=float(os.environ.get("LOG_BUFFER_TIMEOUT", "5.0")),
+    )
 
     # Additional Celery-specific configuration
     celery_logger = logging.getLogger("celery")
