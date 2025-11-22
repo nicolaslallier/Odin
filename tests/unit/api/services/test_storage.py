@@ -90,7 +90,9 @@ class TestStorageService:
             mock_client = MagicMock()
             mock_get_client.return_value = mock_client
             
-            storage_service.create_bucket("test-bucket")
+            # Mock bucket_exists to return False so create_bucket will actually call make_bucket
+            with patch.object(storage_service, "bucket_exists", return_value=False):
+                storage_service.create_bucket("test-bucket")
             
             mock_client.make_bucket.assert_called_once_with("test-bucket")
 
@@ -148,7 +150,7 @@ class TestStorageService:
             result = storage_service.list_files("bucket")
             
             assert result == ["file1.txt", "file2.txt"]
-            mock_client.list_objects.assert_called_once_with("bucket")
+            mock_client.list_objects.assert_called_once_with("bucket", prefix="")
 
     def test_health_check_success(self, storage_service: StorageService) -> None:
         """Test health check returns True when MinIO is accessible."""

@@ -289,7 +289,7 @@ coverage:
 # API Component Tests
 test-api:
 	@echo "$(BLUE)Running all API tests (unit + integration)...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/api/ tests/integration/api/ -v
+	@$(DOCKER_COMPOSE) exec api pytest tests/unit/api/ tests/integration/api/ -v
 	@echo "$(GREEN)✓ API tests complete!$(NC)"
 
 test-api-unit:

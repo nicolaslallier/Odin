@@ -31,11 +31,11 @@ class TestOllamaService:
         """Test list_models returns available models."""
         with patch("src.api.services.ollama.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
-            mock_response = AsyncMock()
-            mock_response.json.return_value = {
+            mock_response = MagicMock()
+            mock_response.json = MagicMock(return_value={
                 "models": [{"name": "llama2"}, {"name": "codellama"}]
-            }
-            mock_client.get.return_value = mock_response
+            })
+            mock_client.get = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client
             
             result = await ollama_service.list_models()
@@ -48,9 +48,9 @@ class TestOllamaService:
         """Test generate_text returns generated text."""
         with patch("src.api.services.ollama.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
-            mock_response = AsyncMock()
-            mock_response.json.return_value = {"response": "Generated text"}
-            mock_client.post.return_value = mock_response
+            mock_response = MagicMock()
+            mock_response.json = MagicMock(return_value={"response": "Generated text"})
+            mock_client.post = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client
             
             result = await ollama_service.generate_text("llama2", "Hello")
@@ -67,9 +67,9 @@ class TestOllamaService:
         """Test generate_text with system prompt."""
         with patch("src.api.services.ollama.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
-            mock_response = AsyncMock()
-            mock_response.json.return_value = {"response": "Generated text"}
-            mock_client.post.return_value = mock_response
+            mock_response = MagicMock()
+            mock_response.json = MagicMock(return_value={"response": "Generated text"})
+            mock_client.post = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client
             
             result = await ollama_service.generate_text(
@@ -86,11 +86,19 @@ class TestOllamaService:
         with patch("src.api.services.ollama.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_response = AsyncMock()
-            mock_response.aiter_lines.return_value = [
-                '{"response": "Hello"}',
-                '{"response": " World"}',
-            ]
-            mock_client.post.return_value.__aenter__.return_value = mock_response
+            
+            # Mock aiter_lines as an async generator
+            async def mock_aiter_lines():
+                for line in ['{"response": "Hello"}', '{"response": " World"}']:
+                    yield line
+            
+            mock_response.aiter_lines = mock_aiter_lines
+            
+            # Mock the stream context manager
+            mock_stream_cm = AsyncMock()
+            mock_stream_cm.__aenter__.return_value = mock_response
+            mock_stream_cm.__aexit__.return_value = None
+            mock_client.stream = MagicMock(return_value=mock_stream_cm)
             mock_client_class.return_value.__aenter__.return_value = mock_client
             
             chunks = []
@@ -104,9 +112,10 @@ class TestOllamaService:
         """Test pull_model downloads a model."""
         with patch("src.api.services.ollama.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
-            mock_response = AsyncMock()
-            mock_response.json.return_value = {"status": "success"}
-            mock_client.post.return_value = mock_response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json = MagicMock(return_value={"status": "success"})
+            mock_client.post = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client
             
             result = await ollama_service.pull_model("llama2")
@@ -139,15 +148,15 @@ class TestOllamaService:
         """Test health check returns True when Ollama is accessible."""
         with patch("src.api.services.ollama.httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
-            mock_response = AsyncMock()
+            mock_response = MagicMock()
             mock_response.status_code = 200
-            mock_client.get.return_value = mock_response
+            mock_client.get = AsyncMock(return_value=mock_response)
             mock_client_class.return_value.__aenter__.return_value = mock_client
             
             result = await ollama_service.health_check()
             
             assert result is True
-            mock_client.get.assert_called_once_with(f"{ollama_service.base_url}/api/tags")
+            mock_client.get.assert_called_once_with(f"{ollama_service.base_url}/api/tags", timeout=5.0)
 
     @pytest.mark.asyncio
     async def test_health_check_failure(self, ollama_service: OllamaService) -> None:

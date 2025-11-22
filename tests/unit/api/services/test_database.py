@@ -96,14 +96,12 @@ class TestDatabaseService:
         """Test that close disposes the engine."""
         service = DatabaseService(dsn="postgresql://user:pass@host:5432/db")
         
-        with patch.object(service, "get_engine") as mock_get_engine:
-            mock_engine = AsyncMock(spec=AsyncEngine)
-            mock_get_engine.return_value = mock_engine
-            
-            # Initialize engine
-            service.get_engine()
-            
-            await service.close()
-            
-            mock_engine.dispose.assert_called_once()
+        # Create a mock engine and set it directly on the service
+        mock_engine = AsyncMock(spec=AsyncEngine)
+        service._engine = mock_engine
+        
+        await service.close()
+        
+        mock_engine.dispose.assert_called_once()
+        assert service._engine is None
 
