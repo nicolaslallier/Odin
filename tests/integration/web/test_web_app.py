@@ -62,7 +62,7 @@ class TestWebApplicationIntegration:
 
         content = response.text
         assert "footer" in content.lower()
-        assert "0.2.1" in content or "Version" in content
+        assert "0.4.2" in content or "Version" in content
 
     def test_static_css_is_referenced(self, client: TestClient) -> None:
         """Test that CSS file is properly referenced."""
@@ -115,6 +115,6 @@ class TestWebApplicationIntegration:
         app = create_app()
 
         assert app.title == "Odin Web Interface"
-        assert app.version == "0.2.1"
+        assert app.version == "0.4.2"
         assert app.description is not None
 

@@ -305,7 +305,9 @@ test-api-integration:
 # Web Component Tests
 test-web:
 	@echo "$(BLUE)Running all Web tests (unit + integration)...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/web/ tests/integration/web/ -v
+	@$(DOCKER_COMPOSE) run --rm portal bash -c "pytest tests/unit/web/ tests/integration/web/ -v \
+		--cov=src/web --cov-report=term-missing:skip-covered --cov-report=html --cov-report=xml \
+		--cov-fail-under=100"
 	@echo "$(GREEN)✓ Web tests complete!$(NC)"
 
 test-web-unit:

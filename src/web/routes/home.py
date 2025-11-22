@@ -37,10 +37,9 @@ async def home(request: Request) -> HTMLResponse:
         "Hello World" message and Odin branding.
     """
     context = {
-        "request": request,
         "title": "Welcome to Odin",
         "message": "Hello World",
-        "version": "0.2.1",
+        "version": "0.4.2",
     }
-    return templates.TemplateResponse("index.html", context)
+    return templates.TemplateResponse(request, "index.html", context)
 

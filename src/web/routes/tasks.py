@@ -11,8 +11,6 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from src.api.services.task_service import get_task_service
-
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
@@ -49,6 +47,8 @@ async def dispatch_data_processing(
         POST /tasks/process-data
         Body: [{"id": 1, "value": "data"}]
     """
+    from src.api.services.task_service import get_task_service
+
     service = get_task_service()
     result = service.dispatch_bulk_data_processing(data_items)
     return TaskDispatchResponse(**result)
@@ -70,6 +70,8 @@ async def dispatch_notification(
         POST /tasks/send-notification
         Body: {"user_id": 123, "type": "email", "message": "Hello"}
     """
+    from src.api.services.task_service import get_task_service
+
     service = get_task_service()
     result = service.dispatch_notification(notification_data)
     return TaskDispatchResponse(**result)
@@ -91,6 +93,8 @@ async def get_task_status(task_id: str) -> TaskStatusResponse:
     Example:
         GET /tasks/abc-123-def-456
     """
+    from src.api.services.task_service import get_task_service
+
     service = get_task_service()
     try:
         status = service.get_task_status(task_id)

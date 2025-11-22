@@ -43,7 +43,7 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     # Create FastAPI application
     app = FastAPI(
         title="Odin Web Interface",
-        version="0.4.0",
+        version="0.4.2",
         description="A modern web interface for the Odin project, "
         "built with FastAPI and following SOLID principles.",
     )

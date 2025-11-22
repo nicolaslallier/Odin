@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WebConfig(BaseModel):
@@ -32,29 +32,7 @@ class WebConfig(BaseModel):
         default="info", description="Logging level"
     )
 
-    class Config:
-        """Pydantic model configuration."""
-
-        frozen = True  # Makes the config immutable
-
-    @field_validator("log_level")
-    @classmethod
-    def validate_log_level(cls, v: str) -> str:
-        """Validate that log level is one of the allowed values.
-
-        Args:
-            v: The log level to validate
-
-        Returns:
-            The validated log level
-
-        Raises:
-            ValueError: If log level is not valid
-        """
-        valid_levels = ["debug", "info", "warning", "error", "critical"]
-        if v not in valid_levels:
-            raise ValueError(f"log_level must be one of {valid_levels}")
-        return v
+    model_config = ConfigDict(frozen=True)  # Makes the config immutable
 
     def __str__(self) -> str:
         """Return a string representation of the configuration.

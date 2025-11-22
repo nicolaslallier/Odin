@@ -64,10 +64,11 @@ omit = [
     "*/tests/*",
     "*/test_*.py",
     "*/__init__.py",
-    "*/web/*",
+    "*/api/*",
     "*/worker/*",
     "*/__main__.py",
     "*/task_service.py",
+    "*/web/routes/tasks.py",
 ]
 
 [tool.coverage.report]

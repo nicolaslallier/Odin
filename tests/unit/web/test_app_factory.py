@@ -36,7 +36,7 @@ class TestAppFactory:
 
         app = create_app()
 
-        assert app.version == "0.2.1"
+        assert app.version == "0.4.2"
 
     def test_create_app_has_description(self) -> None:
         """Test that the app has a description."""
