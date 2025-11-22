@@ -47,7 +47,7 @@ def mock_database() -> Mock:
     mock_session = AsyncMock()
     mock_session.commit = AsyncMock()
     mock_session.rollback = AsyncMock()
-
+    
     mock_cm = AsyncMock()
     mock_cm.__aenter__.return_value = mock_session
     mock_cm.__aexit__.return_value = None
@@ -523,4 +523,54 @@ class TestContentTypeValidation:
         for content_type in unsupported_types:
             is_valid = content_type.startswith("image/")
             assert is_valid is False
+
+
+def test_generate_object_key_no_extension(image_analysis_service: ImageAnalysisService) -> None:
+    """Test object key generation for filename without extension."""
+    filename = "noextfilename"
+    with patch("time.time", return_value=123456.789):
+        key = image_analysis_service._generate_object_key(filename)
+        assert key.startswith("noextfilename_")
+        assert key.endswith("789000")
+
+def test_generate_object_key_with_extension(image_analysis_service: ImageAnalysisService) -> None:
+    """Test object key generation for filename with extension."""
+    filename = "file.png"
+    with patch("time.time", return_value=123):
+        key = image_analysis_service._generate_object_key(filename)
+        assert key.startswith("file_") and key.endswith(".png")
+
+@pytest.mark.asyncio
+async def test_analyze_and_store_creates_bucket(image_analysis_service: ImageAnalysisService, mock_repository: Mock) -> None:
+    """Test that bucket is created if it doesn't exist."""
+    # Arrange
+    filename = "bucket_test.jpg"
+    file_data = b"img"
+    content_type = "image/jpeg"
+    image_analysis_service.storage.bucket_exists.return_value = False
+    with patch("src.api.services.image_analysis.ImageRepository", return_value=mock_repository):
+        await image_analysis_service.analyze_and_store(
+            filename=filename,
+            file_data=file_data,
+            content_type=content_type,
+        )
+    image_analysis_service.storage.create_bucket.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_analyze_and_store_storage_error_on_cleanup(image_analysis_service: ImageAnalysisService, mock_repository: Mock) -> None:
+    """Test that StorageError during cleanup is swallowed and original error is raised."""
+    # Trigger LLM failure AND make storage.delete_file raise
+    filename = "fail.jpg"
+    file_data = b"data"
+    content_type = "image/jpeg"
+    image_analysis_service.ollama.analyze_image.side_effect = Exception("fail analysis")
+    image_analysis_service.storage.delete_file.side_effect = StorageError("forced cleanup fail")
+    with patch("src.api.services.image_analysis.ImageRepository", return_value=mock_repository):
+        with pytest.raises(Exception, match="fail analysis"):
+            await image_analysis_service.analyze_and_store(
+                filename=filename,
+                file_data=file_data,
+                content_type=content_type,
+            )  # Should swallow StorageError and raise the original
+    image_analysis_service.storage.delete_file.assert_called_once()
 

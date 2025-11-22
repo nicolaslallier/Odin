@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}File Manager{% endblock %}
+
+{% block content %}
+<div class="file-manager">
+  <div class="file-manager-header">
+    <h2>File Manager</h2>
+    <div class="bucket-info">
+      <span class="bucket-label">Bucket:</span>
+      <span class="bucket-name" id="bucket-name">odin-files</span>
+    </div>
+  </div>
+
+  <!-- Upload Section -->
+  <div class="upload-section">
+    <h3>Upload File</h3>
+    <form id="upload-form">
+      <div class="form-group">
+        <label for="file-input">Select File:</label>
+        <input type="file" id="file-input" name="file" required>
+        <span id="file-name" class="file-name"></span>
+      </div>
+      <div class="form-group">
+        <label for="file-path">Path/Prefix (optional):</label>
+        <input type="text" id="file-path" name="path" placeholder="e.g., documents/ or images/2024/">
+        <small>Leave empty to upload to root, or specify a folder path</small>
+      </div>
+      <button type="submit" class="btn-primary">
+        <span class="upload-icon">⬆</span> Upload File
+      </button>
+    </form>
+    <div id="upload-status"></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="file-toolbar">
+    <div class="toolbar-left">
+      <button id="refresh-btn" class="btn-icon" title="Refresh file list">
+        <span>🔄</span> Refresh
+      </button>
+      <div class="filter-group">
+        <label for="prefix-filter">Filter by prefix:</label>
+        <input type="text" id="prefix-filter" placeholder="e.g., documents/">
+        <button id="apply-filter-btn" class="btn-secondary">Apply</button>
+        <button id="clear-filter-btn" class="btn-secondary">Clear</button>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <div class="view-toggle">
+        <button id="view-table" class="view-btn active" title="Table view">
+          <span>☰</span> Table
+        </button>
+        <button id="view-grid" class="view-btn" title="Grid view">
+          <span>⊞</span> Grid
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- File List -->
+  <div id="file-list-container">
+    <div id="loading" class="loading-state">
+      <p>Loading files...</p>
+    </div>
+    
+    <!-- Table View -->
+    <div id="table-view" class="file-table-view" style="display: none;">
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Size</th>
+            <th>Type</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <!-- Populated by JavaScript -->
+        </tbody>
+      </table>
+      <div id="table-empty" class="empty-state" style="display: none;">
+        <p>No files found. Upload a file to get started.</p>
+      </div>
+    </div>
+
+    <!-- Grid View -->
+    <div id="grid-view" class="file-grid-view" style="display: none;">
+      <div id="grid-container" class="file-grid">
+        <!-- Populated by JavaScript -->
+      </div>
+      <div id="grid-empty" class="empty-state" style="display: none;">
+        <p>No files found. Upload a file to get started.</p>
+      </div>
+    </div>
+
+    <div id="error-state" class="error-state" style="display: none;">
+      <!-- Error messages -->
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="preview-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="preview-title">File Preview</h3>
+        <button class="modal-close" id="preview-close">&times;</button>
+      </div>
+      <div class="modal-body" id="preview-body">
+        <!-- Preview content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Metadata Modal -->
+  <div id="metadata-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>File Metadata</h3>
+        <button class="modal-close" id="metadata-close">&times;</button>
+      </div>
+      <div class="modal-body" id="metadata-body">
+        <!-- Metadata content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="modal">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h3>Confirm Delete</h3>
+        <button class="modal-close" id="delete-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete this file?</p>
+        <p><strong id="delete-filename"></strong></p>
+        <p class="warning-text">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="delete-cancel" class="btn-secondary">Cancel</button>
+        <button id="delete-confirm" class="btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', path='/js/files.js') }}"></script>
+{% endblock %}
+

@@ -48,21 +48,59 @@ class TestDatabaseService:
             mock_create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_session_context_manager(self) -> None:
-        """Test that get_session returns an async context manager."""
+    async def test_get_engine_raises_service_unavailable(self) -> None:
+        from src.api.services.database import DatabaseService, ServiceUnavailableError
         service = DatabaseService(dsn="postgresql://user:pass@host:5432/db")
-        
+        with patch("src.api.services.database.create_async_engine", side_effect=Exception("fail")):
+            service._engine = None  # force new engine
+            with pytest.raises(ServiceUnavailableError) as exc:
+                service.get_engine()
+            assert "Failed to create database engine" in str(exc.value)
+    
+    @pytest.mark.asyncio
+    async def test_get_session_sqlalchemy_error(self) -> None:
+        from src.api.services.database import DatabaseService, DatabaseError
+        from sqlalchemy.exc import SQLAlchemyError
+        service = DatabaseService(dsn="postgresql://user:pass@host:5432/db")
         with patch.object(service, "get_engine") as mock_get_engine:
-            mock_engine = AsyncMock(spec=AsyncEngine)
+            mock_engine = AsyncMock()
             mock_session = AsyncMock(spec=AsyncSession)
+            mock_session.commit = AsyncMock()
+            mock_session.rollback = AsyncMock()
             mock_sessionmaker = MagicMock()
             mock_sessionmaker.return_value.__aenter__.return_value = mock_session
-            
+            mock_sessionmaker.return_value.__aexit__.return_value = None
             mock_get_engine.return_value = mock_engine
-            
             with patch("src.api.services.database.async_sessionmaker", return_value=mock_sessionmaker):
-                async with service.get_session() as session:
-                    assert session == mock_session
+                # SQLAlchemyError triggers rollback and DatabaseError
+                mock_session.commit.side_effect = SQLAlchemyError("fail")
+                with pytest.raises(DatabaseError) as exc:
+                    async with service.get_session():
+                        pass
+                assert "Database operation failed" in str(exc.value)
+                mock_session.rollback.assert_awaited()
+    
+    @pytest.mark.asyncio
+    async def test_get_session_non_sqlalchemy_error(self) -> None:
+        from src.api.services.database import DatabaseService, DatabaseError
+        service = DatabaseService(dsn="postgresql://user:pass@host:5432/db")
+        with patch.object(service, "get_engine") as mock_get_engine:
+            mock_engine = AsyncMock()
+            mock_session = AsyncMock(spec=AsyncSession)
+            mock_session.commit = AsyncMock()
+            mock_session.rollback = AsyncMock()
+            mock_sessionmaker = MagicMock()
+            mock_sessionmaker.return_value.__aenter__.return_value = mock_session
+            mock_sessionmaker.return_value.__aexit__.return_value = None
+            mock_get_engine.return_value = mock_engine
+            with patch("src.api.services.database.async_sessionmaker", return_value=mock_sessionmaker):
+                # Non-SQLAlchemyError triggers rollback and DatabaseError
+                mock_session.commit.side_effect = RuntimeError("generic fail")
+                with pytest.raises(DatabaseError) as exc:
+                    async with service.get_session():
+                        pass
+                assert "Unexpected error during database operation" in str(exc.value)
+                mock_session.rollback.assert_awaited()
 
     @pytest.mark.asyncio
     async def test_health_check_success(self) -> None:

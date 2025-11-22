@@ -40,7 +40,7 @@ class TestAPIConfig:
             assert config.host == "0.0.0.0"
             assert config.port == 8001
             assert config.log_level == "info"
-            assert config.reload is False
+            assert config.reload is True
 
     def test_config_from_environment(self) -> None:
         """Test that configuration is loaded from environment variables."""

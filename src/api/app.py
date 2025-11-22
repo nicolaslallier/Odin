@@ -96,6 +96,14 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Global error handler for ResourceNotFoundError
+    from src.api.exceptions import ResourceNotFoundError
+    from fastapi.responses import JSONResponse
+    from fastapi import Request
+    @app.exception_handler(ResourceNotFoundError)
+    async def not_found_handler(request: Request, exc: ResourceNotFoundError):
+        return JSONResponse(status_code=404, content={"detail": str(exc)})
+
     # Store configuration in app state
     app.state.config = config
 

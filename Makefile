@@ -288,8 +288,9 @@ coverage:
 
 # API Component Tests
 test-api:
-	@echo "$(BLUE)Running all API tests (unit + integration)...$(NC)"
-	@$(DOCKER_COMPOSE) exec api pytest tests/unit/api/ tests/integration/api/ -v
+	@echo "$(BLUE)Running all API tests (unit + integration, with coverage)...$(NC)"
+	@$(DOCKER_COMPOSE) exec api bash -c "cd /app && pytest tests/unit/api/ tests/integration/api/ -v \
+		--cov=src/api --cov-report=term-missing --cov-report=xml --cov-fail-under=93"
 	@echo "$(GREEN)✓ API tests complete!$(NC)"
 
 test-api-unit:

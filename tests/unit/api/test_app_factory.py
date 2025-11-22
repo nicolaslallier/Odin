@@ -127,3 +127,39 @@ class TestAppFactory:
             assert isinstance(app, FastAPI)
             mock_get_config.assert_called_once()
 
+    def test_resource_not_found_handler_returns_404(self) -> None:
+        from src.api.app import create_app
+        from src.api.exceptions import ResourceNotFoundError
+        from fastapi.testclient import TestClient
+        config = APIConfig(
+            host="0.0.0.0",
+            port=8001,
+            postgres_dsn="postgresql://test:test@localhost:5432/test",
+            minio_endpoint="minio:9000",
+            minio_access_key="admin",
+            minio_secret_key="password",
+            rabbitmq_url="amqp://test:test@localhost:5672/",
+            vault_addr="http://vault:8200",
+            vault_token="token",
+            ollama_base_url="http://ollama:11434",
+        )
+        app = create_app(config)
+
+        @app.get("/error")
+        async def err():
+            raise ResourceNotFoundError("not found")
+
+        client = TestClient(app)
+        response = client.get("/error")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "not found"
+
+    def test_get_service_container_error(self) -> None:
+        """Test get_container raises RuntimeError when container not initialized."""
+        from fastapi import FastAPI
+        from src.api.app import get_container
+        app = FastAPI()
+        # No container added
+        with pytest.raises(RuntimeError, match="Service container not initialized"):
+            get_container(app)
+

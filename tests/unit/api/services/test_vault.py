@@ -54,6 +54,33 @@ class TestVaultService:
                 path="secret/data/myapp", secret={"password": "secret123"}
             )
 
+    def test_write_secret_forbidden(self, vault_service: VaultService) -> None:
+        with patch.object(vault_service, "get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.secrets.kv.v2.create_or_update_secret.side_effect = hvac.exceptions.Forbidden("denied")
+            mock_get_client.return_value = mock_client
+            with pytest.raises(Exception) as exc:
+                vault_service.write_secret("secret/data/path", {"foo": "bar"})
+            assert "Permission denied writing secret" in str(exc.value)
+
+    def test_write_secret_vault_error(self, vault_service: VaultService) -> None:
+        with patch.object(vault_service, "get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.secrets.kv.v2.create_or_update_secret.side_effect = hvac.exceptions.VaultError("vault down")
+            mock_get_client.return_value = mock_client
+            with pytest.raises(Exception) as exc:
+                vault_service.write_secret("secret/data/path", {"foo": "bar"})
+            assert "Failed to write secret" in str(exc.value)
+
+    def test_write_secret_unhandled_exception(self, vault_service: VaultService) -> None:
+        with patch.object(vault_service, "get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.secrets.kv.v2.create_or_update_secret.side_effect = Exception("network error")
+            mock_get_client.return_value = mock_client
+            with pytest.raises(Exception) as exc:
+                vault_service.write_secret("secret/data/path", {"foo": "bar"})
+            assert "Vault unreachable" in str(exc.value)
+
     def test_read_secret_success(self, vault_service: VaultService) -> None:
         """Test read_secret retrieves a secret from Vault."""
         with patch.object(vault_service, "get_client") as mock_get_client:
@@ -68,6 +95,33 @@ class TestVaultService:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 path="secret/data/myapp"
             )
+
+    def test_read_secret_forbidden(self, vault_service: VaultService) -> None:
+        with patch.object(vault_service, "get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.Forbidden("denied")
+            mock_get_client.return_value = mock_client
+            with pytest.raises(Exception) as exc:
+                vault_service.read_secret("secret/data/path")
+            assert "Permission denied reading secret" in str(exc.value)
+
+    def test_read_secret_vault_error(self, vault_service: VaultService) -> None:
+        with patch.object(vault_service, "get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.VaultError("vault error")
+            mock_get_client.return_value = mock_client
+            with pytest.raises(Exception) as exc:
+                vault_service.read_secret("secret/data/path")
+            assert "Failed to read secret" in str(exc.value)
+
+    def test_read_secret_unhandled_exception(self, vault_service: VaultService) -> None:
+        with patch.object(vault_service, "get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.secrets.kv.v2.read_secret_version.side_effect = Exception("unexpected")
+            mock_get_client.return_value = mock_client
+            with pytest.raises(Exception) as exc:
+                vault_service.read_secret("secret/data/path")
+            assert "Vault unreachable" in str(exc.value)
 
     def test_read_secret_raises_not_found_when_not_found(self, vault_service: VaultService) -> None:
         """Test read_secret raises ResourceNotFoundError when secret does not exist."""
@@ -90,6 +144,15 @@ class TestVaultService:
             mock_client.secrets.kv.v2.delete_metadata_and_all_versions.assert_called_once_with(
                 path="secret/data/myapp"
             )
+
+    def test_delete_secret_vault_error(self, vault_service: VaultService) -> None:
+        with patch.object(vault_service, "get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.secrets.kv.v2.delete_metadata_and_all_versions.side_effect = hvac.exceptions.VaultError("something went wrong")
+            mock_get_client.return_value = mock_client
+            with pytest.raises(Exception) as exc:
+                vault_service.delete_secret("secret/data/path")
+            assert "Failed to delete secret" in str(exc.value)
 
     def test_list_secrets_success(self, vault_service: VaultService) -> None:
         """Test list_secrets returns list of secrets at path."""
@@ -116,6 +179,15 @@ class TestVaultService:
             result = vault_service.list_secrets("secret/data/nonexistent")
             
             assert result == []
+
+    def test_list_secrets_vault_error(self, vault_service: VaultService) -> None:
+        with patch.object(vault_service, "get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.secrets.kv.v2.list_secrets.side_effect = hvac.exceptions.VaultError("something went wrong")
+            mock_get_client.return_value = mock_client
+            with pytest.raises(Exception) as exc:
+                vault_service.list_secrets("secret/data/path")
+            assert "Failed to list secrets" in str(exc.value)
 
     @pytest.mark.asyncio
     async def test_health_check_success(self, vault_service: VaultService) -> None:

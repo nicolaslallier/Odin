@@ -38,6 +38,38 @@ class TestQueueService:
             assert connection == mock_connection
             mock_conn.assert_called_once()
 
+    def test_ensure_connection_amqp_error(self, queue_service: QueueService) -> None:
+        with patch("src.api.services.queue.pika.BlockingConnection") as mock_conn:
+            import pika
+            mock_conn.side_effect = pika.exceptions.AMQPConnectionError("fail")
+            with pytest.raises(Exception) as exc:
+                queue_service._ensure_connection()
+            assert "Failed to connect to RabbitMQ" in str(exc.value)
+
+    def test_get_channel_raises_queue_error(self, queue_service: QueueService) -> None:
+        with patch.object(queue_service, "_ensure_connection") as mock_ensure:
+            mock_conn = MagicMock()
+            mock_ensure.return_value = mock_conn
+            # channel() will raise
+            mock_conn.channel.side_effect = Exception("Broken")
+            with pytest.raises(Exception) as exc:
+                with queue_service._get_channel():
+                    pass
+            assert "Channel operation failed" in str(exc.value)
+
+    def test_channel_close_error(self, queue_service: QueueService) -> None:
+        with patch.object(queue_service, "_ensure_connection") as mock_ensure:
+            mock_conn = MagicMock()
+            mock_channel = MagicMock()
+            mock_channel.is_open = True
+            # channel.close itself raises
+            mock_channel.close.side_effect = Exception("bad close")
+            mock_conn.channel.return_value = mock_channel
+            mock_ensure.return_value = mock_conn
+            # Should NOT raise
+            with queue_service._get_channel() as ch:
+                pass
+
     def test_declare_queue_success(self, queue_service: QueueService) -> None:
         """Test declare_queue creates a queue."""
         with patch.object(queue_service, "_get_channel") as mock_get_channel:
@@ -50,6 +82,16 @@ class TestQueueService:
             mock_channel.queue_declare.assert_called_once_with(
                 queue="test-queue", durable=True
             )
+
+    def test_declare_queue_error(self, queue_service: QueueService) -> None:
+        with patch.object(queue_service, "_get_channel") as mock_get_channel:
+            mock_channel = MagicMock()
+            mock_channel.queue_declare.side_effect = Exception("fail declare")
+            mock_get_channel.return_value.__enter__.return_value = mock_channel
+            mock_get_channel.return_value.__exit__.return_value = None
+            with pytest.raises(Exception) as exc:
+                queue_service.declare_queue("test-queue")
+            assert "fail declare" in str(exc.value)
 
     def test_publish_message_success(self, queue_service: QueueService) -> None:
         """Test publish_message sends a message to queue."""
@@ -65,6 +107,16 @@ class TestQueueService:
             assert call_args[1]["exchange"] == ""
             assert call_args[1]["routing_key"] == "test-queue"
             assert call_args[1]["body"] == "test message"
+
+    def test_publish_message_error(self, queue_service: QueueService) -> None:
+        with patch.object(queue_service, "_get_channel") as mock_get_channel:
+            mock_channel = MagicMock()
+            mock_channel.basic_publish.side_effect = Exception("fail publish")
+            mock_get_channel.return_value.__enter__.return_value = mock_channel
+            mock_get_channel.return_value.__exit__.return_value = None
+            with pytest.raises(Exception) as exc:
+                queue_service.publish_message("tq", "msg")
+            assert "fail publish" in str(exc.value)
 
     def test_consume_message_success(self, queue_service: QueueService) -> None:
         """Test consume_message receives a message from queue."""
@@ -83,6 +135,16 @@ class TestQueueService:
             assert result == "test message"
             mock_channel.basic_get.assert_called_once_with(queue="test-queue", auto_ack=False)
             mock_channel.basic_ack.assert_called_once_with(delivery_tag=1)
+
+    def test_consume_message_error(self, queue_service: QueueService) -> None:
+        with patch.object(queue_service, "_get_channel") as mock_get_channel:
+            mock_channel = MagicMock()
+            mock_channel.basic_get.side_effect = Exception("fail get")
+            mock_get_channel.return_value.__enter__.return_value = mock_channel
+            mock_get_channel.return_value.__exit__.return_value = None
+            with pytest.raises(Exception) as exc:
+                queue_service.consume_message("tq")
+            assert "fail get" in str(exc.value)
 
     def test_consume_message_returns_none_when_empty(self, queue_service: QueueService) -> None:
         """Test consume_message returns None when queue is empty."""
@@ -107,6 +169,16 @@ class TestQueueService:
             
             mock_channel.queue_purge.assert_called_once_with(queue="test-queue")
 
+    def test_purge_queue_error(self, queue_service: QueueService) -> None:
+        with patch.object(queue_service, "_get_channel") as mock_get_channel:
+            mock_channel = MagicMock()
+            mock_channel.queue_purge.side_effect = Exception("fail purge")
+            mock_get_channel.return_value.__enter__.return_value = mock_channel
+            mock_get_channel.return_value.__exit__.return_value = None
+            with pytest.raises(Exception) as exc:
+                queue_service.purge_queue("tq")
+            assert "fail purge" in str(exc.value)
+
     @pytest.mark.asyncio
     async def test_health_check_success(self, queue_service: QueueService) -> None:
         """Test health check returns True when RabbitMQ is accessible."""
@@ -128,4 +200,15 @@ class TestQueueService:
             result = await queue_service.health_check()
             
             assert result is False
+
+    @pytest.mark.asyncio
+    async def test_close_handles_exception(self, queue_service: QueueService) -> None:
+        # Simulate an exception when close() is called on connection
+        with patch.object(queue_service, "_connection") as mock_conn:
+            mock_conn.is_closed = False
+            mock_conn.close.side_effect = Exception("fail close")
+            # Should NOT raise
+            await queue_service.close()
+            # connection is set to None
+            assert queue_service._connection is None
 

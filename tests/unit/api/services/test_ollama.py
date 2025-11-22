@@ -287,3 +287,146 @@ class TestOllamaService:
                 image_data=image_data,
             )
 
+    @pytest.mark.asyncio
+    async def test_initialize_idempotent(self):
+        svc = OllamaService(base_url="http://ollama:11434")
+        await svc.initialize()
+        client1 = svc._client
+        await svc.initialize()  # Should not replace the client
+        assert svc._client is client1
+
+    @pytest.mark.asyncio
+    async def test_close_idempotent(self):
+        svc = OllamaService(base_url="http://ollama:11434")
+        await svc.close()  # Should do nothing when client is None (no error)
+
+    def test_get_client_not_initialized(self):
+        svc = OllamaService(base_url="http://ollama:11434")
+        with pytest.raises(Exception) as exc:
+            svc._get_client()
+        assert "not initialized" in str(exc.value)
+
+    @pytest.mark.asyncio
+    async def test_list_models_http_error(self, ollama_service):
+        from httpx import HTTPStatusError, Response, Request
+        from src.api.exceptions import LLMError
+        mock_request = MagicMock(spec=Request)
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 500
+        ollama_service._client.get = AsyncMock(side_effect=HTTPStatusError("fail", request=mock_request, response=mock_response))
+        with pytest.raises(LLMError, match="Failed to list models"):
+            await ollama_service.list_models()
+
+    @pytest.mark.asyncio
+    async def test_list_models_request_error(self, ollama_service):
+        from httpx import RequestError
+        from src.api.exceptions import ServiceUnavailableError
+        ollama_service._client.get = AsyncMock(side_effect=RequestError("bad connect"))
+        with pytest.raises(ServiceUnavailableError, match="Ollama service unreachable"):
+            await ollama_service.list_models()
+
+    @pytest.mark.asyncio
+    async def test_generate_text_http_error(self, ollama_service):
+        from httpx import HTTPStatusError, Response, Request
+        from src.api.exceptions import LLMError
+        mock_request = MagicMock(spec=Request)
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 400
+        ollama_service._client.post = AsyncMock(side_effect=HTTPStatusError("bad req", request=mock_request, response=mock_response))
+        with pytest.raises(LLMError, match="Failed to generate text"):
+            await ollama_service.generate_text("llama2", "fail")
+
+    @pytest.mark.asyncio
+    async def test_generate_text_request_error(self, ollama_service):
+        from httpx import RequestError
+        from src.api.exceptions import ServiceUnavailableError
+        ollama_service._client.post = AsyncMock(side_effect=RequestError("oops"))
+        with pytest.raises(ServiceUnavailableError, match="Ollama service unreachable"):
+            await ollama_service.generate_text("llama2", "fail")
+
+    @pytest.mark.asyncio
+    async def test_generate_text_streaming_http_error(self, ollama_service):
+        from httpx import HTTPStatusError, Response, Request
+        from src.api.exceptions import LLMError
+        mock_request = MagicMock(spec=Request)
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 403
+        cm = AsyncMock()
+        cm.__aenter__.side_effect = HTTPStatusError("forbidden", request=mock_request, response=mock_response)
+        cm.__aexit__.return_value = None
+        ollama_service._client.stream = MagicMock(return_value=cm)
+        with pytest.raises(LLMError, match="Failed to generate streaming text"):
+            async for _ in ollama_service.generate_text_streaming("model", "prompt"):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_generate_text_streaming_request_error(self, ollama_service):
+        from httpx import RequestError
+        from src.api.exceptions import ServiceUnavailableError
+        cm = AsyncMock()
+        cm.__aenter__.side_effect = RequestError("oops streaming")
+        cm.__aexit__.return_value = None
+        ollama_service._client.stream = MagicMock(return_value=cm)
+        with pytest.raises(ServiceUnavailableError, match="Ollama service unreachable"):
+            async for _ in ollama_service.generate_text_streaming("model", "prompt"):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_pull_model_http_error(self, ollama_service):
+        from httpx import HTTPStatusError, Response, Request
+        from src.api.exceptions import LLMError
+        mock_request = MagicMock(spec=Request)
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 401
+        ollama_service._client.post = AsyncMock(side_effect=HTTPStatusError("fail pull", request=mock_request, response=mock_response))
+        with pytest.raises(LLMError, match="Failed to pull model"):
+            await ollama_service.pull_model("xx")
+
+    @pytest.mark.asyncio
+    async def test_pull_model_request_error(self, ollama_service):
+        from httpx import RequestError
+        from src.api.exceptions import ServiceUnavailableError
+        ollama_service._client.post = AsyncMock(side_effect=RequestError("lost"))
+        with pytest.raises(ServiceUnavailableError, match="Ollama service unreachable"):
+            await ollama_service.pull_model("xx")
+
+    @pytest.mark.asyncio
+    async def test_delete_model_http_error(self, ollama_service):
+        from httpx import HTTPStatusError, Response, Request
+        from src.api.exceptions import LLMError
+        mock_request = MagicMock(spec=Request)
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 410
+        ollama_service._client.delete = AsyncMock(side_effect=HTTPStatusError("fail delete", request=mock_request, response=mock_response))
+        with pytest.raises(LLMError, match="Failed to delete model"):
+            await ollama_service.delete_model("xx")
+
+    @pytest.mark.asyncio
+    async def test_delete_model_request_error(self, ollama_service):
+        from httpx import RequestError
+        from src.api.exceptions import ServiceUnavailableError
+        ollama_service._client.delete = AsyncMock(side_effect=RequestError("gone"))
+        with pytest.raises(ServiceUnavailableError, match="Ollama service unreachable"):
+            await ollama_service.delete_model("xx")
+
+    @pytest.mark.asyncio
+    async def test_analyze_image_http_error_text_exception(self, ollama_service):
+        # Simulate .response.text raising inside exception block
+        from httpx import HTTPStatusError, Response, Request
+        from src.api.exceptions import LLMError
+        mock_request = MagicMock(spec=Request)
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 500
+        type(mock_response).text = property(lambda self: (_ for _ in ()).throw(Exception("text fail")))
+        ollama_service._client.post = AsyncMock(side_effect=HTTPStatusError("server fail", request=mock_request, response=mock_response))
+        with pytest.raises(LLMError, match="Failed to analyze image"):
+            await ollama_service.analyze_image(model="xx", prompt="y", image_data=b"x")
+
+    @pytest.mark.asyncio
+    async def test_close_multiple(self):
+        svc = OllamaService(base_url="http://abc")
+        await svc.initialize()
+        await svc.close()
+        await svc.close()
+        assert svc._client is None
+

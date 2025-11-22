@@ -45,11 +45,6 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "--verbose",
-    "--cov=src",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
-    "--cov-fail-under=93",
 ]
 markers = [
     "unit: Unit tests for isolated components",
@@ -66,7 +61,6 @@ omit = [
     "*/tests/*",
     "*/test_*.py",
     "*/__init__.py",
-    "*/api/*",
     "*/worker/*",
     "*/__main__.py",
     "*/task_service.py",

@@ -43,7 +43,7 @@ class APIConfig(BaseSettings):
 
     # PostgreSQL Settings
     postgres_dsn: str = Field(alias="POSTGRES_DSN")
-    
+
     @property
     def async_postgres_dsn(self) -> str:
         """Get async-compatible PostgreSQL DSN.

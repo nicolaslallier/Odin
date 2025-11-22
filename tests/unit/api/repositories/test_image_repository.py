@@ -53,6 +53,7 @@ def sample_image_entity() -> ImageAnalysis:
 class TestImageRepositoryCreate:
     """Test cases for ImageRepository.create()."""
 
+    @pytest.mark.asyncio
     async def test_create_success(
         self, mock_session: AsyncMock, sample_image_entity: ImageAnalysis
     ) -> None:
@@ -73,6 +74,7 @@ class TestImageRepositoryCreate:
         mock_session.execute.assert_called_once()
         mock_session.commit.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_create_database_error(
         self, mock_session: AsyncMock, sample_image_entity: ImageAnalysis
     ) -> None:
@@ -91,6 +93,7 @@ class TestImageRepositoryCreate:
 class TestImageRepositoryGetById:
     """Test cases for ImageRepository.get_by_id()."""
 
+    @pytest.mark.asyncio
     async def test_get_by_id_success(self, mock_session: AsyncMock) -> None:
         """Test successful retrieval of image analysis by ID."""
         # Arrange
@@ -120,6 +123,7 @@ class TestImageRepositoryGetById:
         assert result.llm_description == "A test image"
         mock_session.execute.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_get_by_id_not_found(self, mock_session: AsyncMock) -> None:
         """Test get_by_id raises ResourceNotFoundError when item doesn't exist."""
         # Arrange
@@ -132,6 +136,7 @@ class TestImageRepositoryGetById:
         with pytest.raises(ResourceNotFoundError, match="Image analysis not found"):
             await repository.get_by_id(999)
 
+    @pytest.mark.asyncio
     async def test_get_by_id_database_error(self, mock_session: AsyncMock) -> None:
         """Test get_by_id handles database errors properly."""
         # Arrange
@@ -147,6 +152,7 @@ class TestImageRepositoryGetById:
 class TestImageRepositoryGetAll:
     """Test cases for ImageRepository.get_all()."""
 
+    @pytest.mark.asyncio
     async def test_get_all_success(self, mock_session: AsyncMock) -> None:
         """Test successful retrieval of all image analyses."""
         # Arrange
@@ -188,6 +194,7 @@ class TestImageRepositoryGetAll:
         assert result[1].id == 2
         mock_session.execute.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_get_all_empty(self, mock_session: AsyncMock) -> None:
         """Test get_all returns empty list when no records exist."""
         # Arrange
@@ -203,6 +210,7 @@ class TestImageRepositoryGetAll:
         assert len(result) == 0
         assert isinstance(result, list)
 
+    @pytest.mark.asyncio
     async def test_get_all_database_error(self, mock_session: AsyncMock) -> None:
         """Test get_all handles database errors properly."""
         # Arrange
@@ -218,6 +226,7 @@ class TestImageRepositoryGetAll:
 class TestImageRepositoryUpdate:
     """Test cases for ImageRepository.update()."""
 
+    @pytest.mark.asyncio
     async def test_update_success(
         self, mock_session: AsyncMock, sample_image_entity: ImageAnalysis
     ) -> None:
@@ -243,6 +252,7 @@ class TestImageRepositoryUpdate:
         assert mock_session.execute.call_count == 2  # get_by_id + update
         mock_session.commit.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_update_without_id(
         self, mock_session: AsyncMock, sample_image_entity: ImageAnalysis
     ) -> None:
@@ -255,6 +265,7 @@ class TestImageRepositoryUpdate:
         with pytest.raises(DatabaseError, match="Cannot update image analysis without ID"):
             await repository.update(sample_image_entity)
 
+    @pytest.mark.asyncio
     async def test_update_not_found(
         self, mock_session: AsyncMock, sample_image_entity: ImageAnalysis
     ) -> None:
@@ -270,6 +281,7 @@ class TestImageRepositoryUpdate:
         with pytest.raises(ResourceNotFoundError):
             await repository.update(sample_image_entity)
 
+    @pytest.mark.asyncio
     async def test_update_database_error(
         self, mock_session: AsyncMock, sample_image_entity: ImageAnalysis
     ) -> None:
@@ -296,6 +308,7 @@ class TestImageRepositoryUpdate:
 class TestImageRepositoryDelete:
     """Test cases for ImageRepository.delete()."""
 
+    @pytest.mark.asyncio
     async def test_delete_success(self, mock_session: AsyncMock) -> None:
         """Test successful deletion of image analysis record."""
         # Arrange
@@ -313,6 +326,7 @@ class TestImageRepositoryDelete:
         assert mock_session.execute.call_count == 2  # get_by_id + delete
         mock_session.commit.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_delete_not_found(self, mock_session: AsyncMock) -> None:
         """Test delete fails when entity doesn't exist."""
         # Arrange
@@ -325,6 +339,7 @@ class TestImageRepositoryDelete:
         with pytest.raises(ResourceNotFoundError):
             await repository.delete(999)
 
+    @pytest.mark.asyncio
     async def test_delete_database_error(self, mock_session: AsyncMock) -> None:
         """Test delete handles database errors properly."""
         # Arrange
@@ -348,6 +363,7 @@ class TestImageRepositoryDelete:
 class TestImageRepositoryCount:
     """Test cases for ImageRepository.count()."""
 
+    @pytest.mark.asyncio
     async def test_count_success(self, mock_session: AsyncMock) -> None:
         """Test successful count of image analyses."""
         # Arrange
@@ -363,6 +379,7 @@ class TestImageRepositoryCount:
         assert result == 5
         mock_session.execute.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_count_zero(self, mock_session: AsyncMock) -> None:
         """Test count returns zero when no records exist."""
         # Arrange
@@ -377,6 +394,7 @@ class TestImageRepositoryCount:
         # Assert
         assert result == 0
 
+    @pytest.mark.asyncio
     async def test_count_database_error(self, mock_session: AsyncMock) -> None:
         """Test count handles database errors properly."""
         # Arrange
