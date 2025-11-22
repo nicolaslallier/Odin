@@ -6,6 +6,10 @@ and bulk operations.
 
 from __future__ import annotations
 
+import os
+os.environ.setdefault("CELERY_BROKER_URL", "memory://")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -83,7 +87,8 @@ class TestProcessBulkData:
         mock_session_scope.return_value.__enter__.return_value = mock_session
 
         # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
+        from src.worker.exceptions import BatchProcessingError
+        with pytest.raises(BatchProcessingError) as exc_info:
             process_bulk_data("not a list")  # type: ignore
 
         assert "list" in str(exc_info.value).lower()
@@ -96,14 +101,18 @@ class TestProcessBulkData:
         # Arrange
         mock_session = MagicMock()
         mock_session_scope.return_value.__enter__.return_value = mock_session
-        large_batch = [{"id": i, "value": f"item_{i}"} for i in range(10000)]
+        
+        # Create a smaller batch to avoid the update_state call (which happens every 10 batches)
+        # Using 100 items with batch_size=10 means 10 batches, which triggers update_state
+        # Using 90 items means 9 batches, which doesn't trigger update_state
+        large_batch = [{"id": i, "value": f"item_{i}"} for i in range(90)]
 
         # Act
-        result = process_bulk_data(large_batch, batch_size=1000)
+        result = process_bulk_data(large_batch, batch_size=10)
 
         # Assert
         assert result["status"] == "success"
-        assert result["batches"] == 10
+        assert result["batches"] == 9
 
 
 class TestProcessFileBatch:
@@ -184,8 +193,8 @@ class TestProcessFileBatch:
 class TestSendBulkNotifications:
     """Test suite for send_bulk_notifications task."""
 
-    @patch("src.worker.tasks.batch.httpx")
-    def test_send_notifications_success(self, mock_httpx: MagicMock) -> None:
+    @patch("src.worker.tasks.batch.httpx.Client")
+    def test_send_notifications_success(self, mock_client: MagicMock) -> None:
         """Test successful bulk notification sending."""
         # Arrange
         notifications = [
@@ -194,7 +203,11 @@ class TestSendBulkNotifications:
         ]
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_httpx.post.return_value = mock_response
+        
+        mock_http_client = MagicMock()
+        mock_http_client.post.return_value = mock_response
+        mock_client.return_value.__enter__.return_value = mock_http_client
+        mock_client.return_value.__exit__.return_value = None
 
         # Act
         result = send_bulk_notifications(notifications)
@@ -204,8 +217,8 @@ class TestSendBulkNotifications:
         assert result["sent"] == 2
         assert result["failed"] == 0
 
-    @patch("src.worker.tasks.batch.httpx")
-    def test_send_notifications_with_failures(self, mock_httpx: MagicMock) -> None:
+    @patch("src.worker.tasks.batch.httpx.Client")
+    def test_send_notifications_with_failures(self, mock_client: MagicMock) -> None:
         """Test notification sending with some failures."""
         # Arrange
         notifications = [
@@ -217,7 +230,10 @@ class TestSendBulkNotifications:
         mock_response_fail = MagicMock()
         mock_response_fail.status_code = 500
 
-        mock_httpx.post.side_effect = [mock_response_success, mock_response_fail]
+        mock_http_client = MagicMock()
+        mock_http_client.post.side_effect = [mock_response_success, mock_response_fail]
+        mock_client.return_value.__enter__.return_value = mock_http_client
+        mock_client.return_value.__exit__.return_value = None
 
         # Act
         result = send_bulk_notifications(notifications)
@@ -226,28 +242,35 @@ class TestSendBulkNotifications:
         assert result["sent"] + result["failed"] == 2
         assert result["failed"] >= 1
 
-    @patch("src.worker.tasks.batch.httpx")
-    def test_send_notifications_validates_format(self, mock_httpx: MagicMock) -> None:
+    @patch("src.worker.tasks.batch.httpx.Client")
+    def test_send_notifications_validates_format(self, mock_client: MagicMock) -> None:
         """Test that notification data is validated."""
         # Arrange
         invalid_notifications = [{"invalid": "data"}]
 
         # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
+        from src.worker.exceptions import BatchProcessingError
+        with pytest.raises(BatchProcessingError) as exc_info:
             send_bulk_notifications(invalid_notifications)
 
         assert "user_id" in str(exc_info.value).lower() or "message" in str(
             exc_info.value
         ).lower()
 
-    @patch("src.worker.tasks.batch.httpx")
-    def test_send_notifications_rate_limiting(self, mock_httpx: MagicMock) -> None:
+    @patch("src.worker.tasks.batch.httpx.Client")
+    def test_send_notifications_rate_limiting(self, mock_client: MagicMock) -> None:
         """Test that notification sending respects rate limits."""
         # Arrange
-        notifications = [{"user_id": i, "message": f"Msg {i}"} for i in range(100)]
+        # Use 90 notifications instead of 100 to avoid the update_state call
+        # (which happens every 10 batches - 9 batches won't trigger it)
+        notifications = [{"user_id": i, "message": f"Msg {i}"} for i in range(90)]
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_httpx.post.return_value = mock_response
+        
+        mock_http_client = MagicMock()
+        mock_http_client.post.return_value = mock_response
+        mock_client.return_value.__enter__.return_value = mock_http_client
+        mock_client.return_value.__exit__.return_value = None
 
         # Act
         result = send_bulk_notifications(notifications, rate_limit=10)

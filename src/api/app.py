@@ -50,9 +50,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Initialize database tables
     from src.api.repositories.data_repository import create_tables
+    from src.api.repositories.image_repository import create_tables as create_image_tables
 
     engine = container.database.get_engine()
     await create_tables(engine)
+    await create_image_tables(engine)
 
     yield
 
@@ -101,6 +103,7 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     from src.api.routes.data import router as data_router
     from src.api.routes.files import router as files_router
     from src.api.routes.health import router as health_router
+    from src.api.routes.image_analysis import router as image_analysis_router
     from src.api.routes.llm import router as llm_router
     from src.api.routes.logs import router as logs_router
     from src.api.routes.messages import router as messages_router
@@ -112,6 +115,7 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     app.include_router(messages_router)
     app.include_router(secrets_router)
     app.include_router(llm_router)
+    app.include_router(image_analysis_router)
     app.include_router(logs_router)
 
     return app

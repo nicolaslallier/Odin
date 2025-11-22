@@ -30,6 +30,9 @@ class APIConfig(BaseSettings):
         vault_addr: Vault server address
         vault_token: Vault authentication token
         ollama_base_url: Ollama API base URL
+        vision_model_default: Default vision model for image analysis
+        image_bucket: MinIO bucket for image storage
+        max_image_size_mb: Maximum image size in megabytes
     """
 
     # API Server Settings
@@ -40,6 +43,20 @@ class APIConfig(BaseSettings):
 
     # PostgreSQL Settings
     postgres_dsn: str = Field(alias="POSTGRES_DSN")
+    
+    @property
+    def async_postgres_dsn(self) -> str:
+        """Get async-compatible PostgreSQL DSN.
+        
+        Converts standard postgresql:// DSN to use asyncpg driver.
+        
+        Returns:
+            PostgreSQL DSN with async driver (postgresql+asyncpg://)
+        """
+        dsn = self.postgres_dsn
+        if dsn.startswith("postgresql://"):
+            return dsn.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return dsn
 
     # MinIO Settings
     minio_endpoint: str = Field(alias="MINIO_ENDPOINT")
@@ -56,6 +73,11 @@ class APIConfig(BaseSettings):
 
     # Ollama Settings
     ollama_base_url: str = Field(alias="OLLAMA_BASE_URL")
+
+    # Image Analysis Settings
+    vision_model_default: str = Field(default="llava:latest", alias="VISION_MODEL_DEFAULT")
+    image_bucket: str = Field(default="images", alias="IMAGE_BUCKET")
+    max_image_size_mb: int = Field(default=10, alias="MAX_IMAGE_SIZE_MB")
 
     model_config = SettingsConfigDict(
         env_file=".env",

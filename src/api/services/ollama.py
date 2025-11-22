@@ -6,6 +6,7 @@ and model management in the API service.
 
 from __future__ import annotations
 
+import base64
 import json
 from typing import Any, AsyncGenerator, Optional
 
@@ -252,6 +253,62 @@ class OllamaService:
             )
         except httpx.RequestError as e:
             raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
+
+    async def analyze_image(
+        self, model: str, prompt: str, image_data: bytes, system: Optional[str] = None
+    ) -> str:
+        """Analyze an image using a vision-capable model.
+
+        Args:
+            model: Name of the vision model to use (e.g., 'llava:latest')
+            prompt: Text prompt for image analysis
+            image_data: Image data as bytes
+            system: Optional system prompt for context
+
+        Returns:
+            Generated image analysis text
+
+        Raises:
+            LLMError: If image analysis fails
+            ServiceUnavailableError: If Ollama service is unreachable
+        """
+        try:
+            client = self._get_client()
+            
+            # Encode image as base64
+            image_base64 = base64.b64encode(image_data).decode("utf-8")
+            
+            payload: dict[str, Any] = {
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "images": [image_base64],
+            }
+            
+            if system:
+                payload["system"] = system
+            
+            response = await client.post(
+                f"{self.base_url}/api/generate",
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data["response"]
+        except httpx.HTTPStatusError as e:
+            error_body = ""
+            try:
+                error_body = e.response.text
+            except Exception:
+                pass
+            raise LLMError(
+                f"Failed to analyze image (HTTP {e.response.status_code}): {error_body or str(e)}",
+                {"status_code": e.response.status_code, "model": model},
+            )
+        except httpx.RequestError as e:
+            raise ServiceUnavailableError(
+                f"Ollama service unreachable at {self.base_url}: {type(e).__name__}: {str(e)}"
+            )
 
     async def health_check(self) -> bool:
         """Check if Ollama connection is healthy.

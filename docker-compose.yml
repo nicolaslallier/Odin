@@ -265,6 +265,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
+      - C_FORCE_ROOT=true
       - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-odin}:${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=db+postgresql://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
       - CELERY_TASK_TRACK_STARTED=${CELERY_TASK_TRACK_STARTED:-true}
@@ -311,6 +312,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
+      - C_FORCE_ROOT=true
       - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-odin}:${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=db+postgresql://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
       - CELERY_TASK_TRACK_STARTED=${CELERY_TASK_TRACK_STARTED:-true}

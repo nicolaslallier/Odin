@@ -56,36 +56,38 @@ class TestHealthRoutes:
         assert data["status"] == "healthy"
         assert data["service"] == "odin-api"
 
-    @pytest.mark.asyncio
-    async def test_health_services_endpoint_all_healthy(self, client: TestClient) -> None:
+    def test_health_services_endpoint_all_healthy(self, client: TestClient, app: FastAPI) -> None:
         """Test /health/services endpoint when all services are healthy."""
-        with patch("src.api.routes.health.DatabaseService") as mock_db, \
-             patch("src.api.routes.health.StorageService") as mock_storage, \
-             patch("src.api.routes.health.QueueService") as mock_queue, \
-             patch("src.api.routes.health.VaultService") as mock_vault, \
-             patch("src.api.routes.health.OllamaService") as mock_ollama:
-            
-            # Mock all service health checks
-            mock_db_instance = AsyncMock()
-            mock_db_instance.health_check = AsyncMock(return_value=True)
-            mock_db.return_value = mock_db_instance
-            
-            mock_storage_instance = MagicMock()
-            mock_storage_instance.health_check = MagicMock(return_value=True)
-            mock_storage.return_value = mock_storage_instance
-            
-            mock_queue_instance = MagicMock()
-            mock_queue_instance.health_check = MagicMock(return_value=True)
-            mock_queue.return_value = mock_queue_instance
-            
-            mock_vault_instance = MagicMock()
-            mock_vault_instance.health_check = MagicMock(return_value=True)
-            mock_vault.return_value = mock_vault_instance
-            
-            mock_ollama_instance = AsyncMock()
-            mock_ollama_instance.health_check = AsyncMock(return_value=True)
-            mock_ollama.return_value = mock_ollama_instance
-            
+        from src.api.routes.health import get_container
+        
+        # Create mock container with all services healthy
+        mock_container = MagicMock()
+        
+        # All health_check methods must be AsyncMock since they're awaited
+        mock_db = MagicMock()
+        mock_db.health_check = AsyncMock(return_value=True)
+        mock_container.database = mock_db
+        
+        mock_storage = MagicMock()
+        mock_storage.health_check = AsyncMock(return_value=True)
+        mock_container.storage = mock_storage
+        
+        mock_queue = MagicMock()
+        mock_queue.health_check = AsyncMock(return_value=True)
+        mock_container.queue = mock_queue
+        
+        mock_vault = MagicMock()
+        mock_vault.health_check = AsyncMock(return_value=True)
+        mock_container.vault = mock_vault
+        
+        mock_ollama = MagicMock()
+        mock_ollama.health_check = AsyncMock(return_value=True)
+        mock_container.ollama = mock_ollama
+        
+        # Override dependency
+        app.dependency_overrides[get_container] = lambda: mock_container
+        
+        try:
             response = client.get("/health/services")
             
             assert response.status_code == 200
@@ -95,37 +97,47 @@ class TestHealthRoutes:
             assert data["queue"] is True
             assert data["vault"] is True
             assert data["ollama"] is True
+        finally:
+            app.dependency_overrides.clear()
 
-    @pytest.mark.asyncio
-    async def test_health_services_endpoint_some_unhealthy(self, client: TestClient) -> None:
+    def test_health_services_endpoint_some_unhealthy(self, client: TestClient, app: FastAPI) -> None:
         """Test /health/services endpoint when some services are unhealthy."""
-        with patch("src.api.routes.health.DatabaseService") as mock_db, \
-             patch("src.api.routes.health.StorageService") as mock_storage, \
-             patch("src.api.routes.health.QueueService") as mock_queue, \
-             patch("src.api.routes.health.VaultService") as mock_vault, \
-             patch("src.api.routes.health.OllamaService") as mock_ollama:
-            
-            # Mock service health checks with some failures
-            mock_db_instance = AsyncMock()
-            mock_db_instance.health_check = AsyncMock(return_value=True)
-            mock_db.return_value = mock_db_instance
-            
-            mock_storage_instance = MagicMock()
-            mock_storage_instance.health_check = MagicMock(return_value=False)
-            mock_storage.return_value = mock_storage_instance
-            
-            mock_queue_instance = MagicMock()
-            mock_queue_instance.health_check = MagicMock(return_value=True)
-            mock_queue.return_value = mock_queue_instance
-            
-            mock_vault_instance = MagicMock()
-            mock_vault_instance.health_check = MagicMock(return_value=False)
-            mock_vault.return_value = mock_vault_instance
-            
-            mock_ollama_instance = AsyncMock()
-            mock_ollama_instance.health_check = AsyncMock(return_value=True)
-            mock_ollama.return_value = mock_ollama_instance
-            
+        from src.api.routes.health import get_container
+        from src.api.services.cache import get_cache
+        
+        # Clear cache to avoid interference from previous test
+        import asyncio
+        cache = get_cache()
+        asyncio.run(cache.delete("health:services"))
+        
+        # Create mock container with some services unhealthy
+        mock_container = MagicMock()
+        
+        # All health_check methods must be AsyncMock since they're awaited
+        mock_db = MagicMock()
+        mock_db.health_check = AsyncMock(return_value=True)
+        mock_container.database = mock_db
+        
+        mock_storage = MagicMock()
+        mock_storage.health_check = AsyncMock(return_value=False)
+        mock_container.storage = mock_storage
+        
+        mock_queue = MagicMock()
+        mock_queue.health_check = AsyncMock(return_value=True)
+        mock_container.queue = mock_queue
+        
+        mock_vault = MagicMock()
+        mock_vault.health_check = AsyncMock(return_value=False)
+        mock_container.vault = mock_vault
+        
+        mock_ollama = MagicMock()
+        mock_ollama.health_check = AsyncMock(return_value=True)
+        mock_container.ollama = mock_ollama
+        
+        # Override dependency
+        app.dependency_overrides[get_container] = lambda: mock_container
+        
+        try:
             response = client.get("/health/services")
             
             assert response.status_code == 200
@@ -135,4 +147,6 @@ class TestHealthRoutes:
             assert data["queue"] is True
             assert data["vault"] is False
             assert data["ollama"] is True
+        finally:
+            app.dependency_overrides.clear()
 

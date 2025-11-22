@@ -61,12 +61,12 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
 
 @pytest.fixture
 def mock_database_service() -> Mock:
-    """Create a mock database service.
-
-    Returns:
-        Mocked database service
-    """
     service = Mock(spec=DatabaseService)
+    mock_cm = AsyncMock()
+    mock_session = AsyncMock()
+    mock_cm.__aenter__.return_value = mock_session
+    mock_cm.__aexit__.return_value = None
+    service.get_session.return_value = mock_cm
     service.health_check = AsyncMock(return_value=True)
     return service
 

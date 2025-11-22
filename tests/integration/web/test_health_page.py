@@ -52,7 +52,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
 
             assert response.status_code == 200
             assert "text/html" in response.headers["content-type"]
@@ -81,7 +81,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             # Check for base template elements
@@ -113,7 +113,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             assert "Infrastructure" in content
@@ -145,7 +145,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             assert "Application" in content
@@ -181,7 +181,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             assert "Circuit Breaker" in content
@@ -210,7 +210,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             assert "refresh" in content.lower()
@@ -240,7 +240,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             assert "Last updated" in content or "last updated" in content
@@ -269,7 +269,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             assert "/static/js/health.js" in content or "health.js" in content
@@ -298,7 +298,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             # Should show both healthy and unhealthy statuses
@@ -329,7 +329,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             assert "<!DOCTYPE html>" in content or "<html" in content
@@ -393,7 +393,7 @@ class TestHealthPageRendering:
             ]
             mock_client.return_value.__aenter__.return_value = mock_instance
 
-            response = client.get("/health")
+            response = client.get("/health-page")
             content = response.text
 
             # Check for common template error indicators

@@ -193,8 +193,8 @@ class TestCircuitBreaker:
 
         assert breaker.state == CircuitState.OPEN
 
-        # RuntimeError should not be caught by circuit breaker
-        with pytest.raises(RuntimeError):
+        # When circuit is OPEN, all calls are blocked with CircuitBreakerOpenError
+        with pytest.raises(CircuitBreakerOpenError):
             await breaker.call(runtime_error_func)
 
     @pytest.mark.asyncio

@@ -5,6 +5,10 @@ This module tests event-driven tasks triggered by user actions and system events
 
 from __future__ import annotations
 
+import os
+os.environ.setdefault("CELERY_BROKER_URL", "memory://")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -182,13 +186,17 @@ class TestProcessWebhook:
 class TestSendNotification:
     """Test suite for send_notification task."""
 
-    @patch("src.worker.tasks.events.httpx")
-    def test_send_notification_success(self, mock_httpx: MagicMock) -> None:
+    @patch("src.worker.tasks.events.session_scope")
+    @patch("src.worker.tasks.events.httpx.post")
+    def test_send_notification_success(self, mock_post: MagicMock, mock_session_scope: MagicMock) -> None:
         """Test successful notification sending."""
         # Arrange
+        mock_session = MagicMock()
+        mock_session_scope.return_value.__enter__.return_value = mock_session
+        
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_httpx.post.return_value = mock_response
+        mock_post.return_value = mock_response
 
         notification_data = {
             "user_id": 123,
@@ -201,14 +209,14 @@ class TestSendNotification:
         result = send_notification(notification_data)
 
         # Assert
-        assert result["status"] == "success"
+        assert result["status"] == "success", f"Result: {result}"
         assert result["user_id"] == 123
 
-    @patch("src.worker.tasks.events.httpx")
-    def test_send_notification_retry_on_failure(self, mock_httpx: MagicMock) -> None:
+    @patch("src.worker.tasks.events.httpx.post")
+    def test_send_notification_retry_on_failure(self, mock_post: MagicMock) -> None:
         """Test that failed notifications are retried."""
         # Arrange
-        mock_httpx.post.side_effect = Exception("Network error")
+        mock_post.side_effect = Exception("Network error")
         notification_data = {
             "user_id": 123,
             "type": "email",
@@ -223,8 +231,8 @@ class TestSendNotification:
         assert result["status"] == "failed"
         assert "error" in result
 
-    @patch("src.worker.tasks.events.httpx")
-    def test_send_notification_validates_type(self, mock_httpx: MagicMock) -> None:
+    @patch("src.worker.tasks.events.httpx.post")
+    def test_send_notification_validates_type(self, mock_post: MagicMock) -> None:
         """Test that notification type is validated."""
         # Arrange
         notification_data = {
@@ -240,15 +248,19 @@ class TestSendNotification:
 
         assert "type" in str(exc_info.value).lower()
 
-    @patch("src.worker.tasks.events.httpx")
+    @patch("src.worker.tasks.events.session_scope")
+    @patch("src.worker.tasks.events.httpx.post")
     def test_send_notification_supports_multiple_channels(
-        self, mock_httpx: MagicMock
+        self, mock_post: MagicMock, mock_session_scope: MagicMock
     ) -> None:
         """Test sending notifications through different channels."""
         # Arrange
+        mock_session = MagicMock()
+        mock_session_scope.return_value.__enter__.return_value = mock_session
+        
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_httpx.post.return_value = mock_response
+        mock_post.return_value = mock_response
 
         notification_types = ["email", "sms", "push"]
 
@@ -261,12 +273,12 @@ class TestSendNotification:
                 "message": "Test message",
             }
             result = send_notification(notification_data)
-            assert result["status"] == "success"
+            assert result["status"] == "success", f"type: {notification_type}, result: {result}"
 
-    @patch("src.worker.tasks.events.httpx")
     @patch("src.worker.tasks.events.session_scope")
+    @patch("src.worker.tasks.events.httpx.post")
     def test_send_notification_logs_to_database(
-        self, mock_session_scope: MagicMock, mock_httpx: MagicMock
+        self, mock_post: MagicMock, mock_session_scope: MagicMock
     ) -> None:
         """Test that sent notifications are logged to database."""
         # Arrange
@@ -274,7 +286,7 @@ class TestSendNotification:
         mock_session_scope.return_value.__enter__.return_value = mock_session
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_httpx.post.return_value = mock_response
+        mock_post.return_value = mock_response
 
         notification_data = {
             "user_id": 123,

@@ -68,9 +68,10 @@ class TestMessageRoutes:
     def test_send_message_error(self, client: TestClient, app: FastAPI) -> None:
         """Test sending a message with error."""
         from src.api.routes.messages import get_queue_service
+        from src.api.exceptions import QueueError
 
         mock_queue = MagicMock()
-        mock_queue.publish_message = MagicMock(side_effect=Exception("Queue error"))
+        mock_queue.publish_message = MagicMock(side_effect=QueueError("Queue error"))
 
         app.dependency_overrides[get_queue_service] = lambda: mock_queue
 
@@ -125,9 +126,10 @@ class TestMessageRoutes:
     def test_receive_message_error(self, client: TestClient, app: FastAPI) -> None:
         """Test receiving a message with error."""
         from src.api.routes.messages import get_queue_service
+        from src.api.exceptions import QueueError
 
         mock_queue = MagicMock()
-        mock_queue.consume_message = MagicMock(side_effect=Exception("Queue error"))
+        mock_queue.consume_message = MagicMock(side_effect=QueueError("Queue error"))
 
         app.dependency_overrides[get_queue_service] = lambda: mock_queue
 

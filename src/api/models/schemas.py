@@ -233,3 +233,34 @@ class LogAnalysisResponse(BaseModel):
         default_factory=list, description="IDs of related log entries"
     )
 
+
+# Image Analysis Models
+class ImageMetadata(BaseModel):
+    """Image file metadata model."""
+
+    bucket: str = Field(..., description="MinIO bucket name")
+    object_key: str = Field(..., description="Unique object key in storage")
+    content_type: str = Field(..., description="MIME content type")
+    size_bytes: int = Field(..., description="File size in bytes")
+
+
+class ImageAnalysisResponse(BaseModel):
+    """Image analysis response model."""
+
+    id: int = Field(..., description="Image analysis ID")
+    filename: str = Field(..., description="Original filename")
+    llm_description: Optional[str] = Field(None, description="LLM-generated description")
+    model_used: Optional[str] = Field(None, description="Model used for analysis")
+    metadata: ImageMetadata = Field(..., description="Image storage metadata")
+    created_at: str = Field(..., description="Creation timestamp (ISO format)")
+    updated_at: str = Field(..., description="Last update timestamp (ISO format)")
+
+
+class ImageAnalysisListResponse(BaseModel):
+    """Image analysis list response model."""
+
+    analyses: list[ImageAnalysisResponse] = Field(
+        ..., description="List of image analyses"
+    )
+    total: int = Field(..., description="Total number of analyses")
+

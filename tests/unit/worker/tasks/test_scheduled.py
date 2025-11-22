@@ -5,6 +5,10 @@ This module tests periodic/scheduled tasks that run on a schedule via Celery Bea
 
 from __future__ import annotations
 
+import os
+os.environ.setdefault("CELERY_BROKER_URL", "memory://")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
+
 from unittest.mock import MagicMock, patch
 
 import pytest

@@ -31,7 +31,7 @@ class CacheEntry:
             ttl: Time to live in seconds (None for no expiration)
         """
         self.value = value
-        self.expires_at = time.time() + ttl if ttl else None
+        self.expires_at = time.time() + ttl if ttl is not None else None
 
     def is_expired(self) -> bool:
         """Check if cache entry has expired.

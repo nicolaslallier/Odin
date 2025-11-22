@@ -11,6 +11,7 @@ from typing import AsyncGenerator, Optional
 
 from src.api.config import APIConfig
 from src.api.services.database import DatabaseService
+from src.api.services.image_analysis import ImageAnalysisService
 from src.api.services.ollama import OllamaService
 from src.api.services.queue import QueueService
 from src.api.services.storage import StorageService
@@ -31,6 +32,7 @@ class ServiceContainer:
         queue: Queue service instance
         vault: Vault service instance
         ollama: LLM service instance
+        image_analysis: Image analysis service instance
     """
 
     def __init__(self, config: APIConfig) -> None:
@@ -45,6 +47,7 @@ class ServiceContainer:
         self._queue: Optional[QueueService] = None
         self._vault: Optional[VaultService] = None
         self._ollama: Optional[OllamaService] = None
+        self._image_analysis: Optional[ImageAnalysisService] = None
 
     async def initialize(self) -> None:
         """Initialize all services.
@@ -53,7 +56,7 @@ class ServiceContainer:
         It should be called during application startup.
         """
         # Initialize database service
-        self._database = DatabaseService(dsn=self.config.postgres_dsn)
+        self._database = DatabaseService(dsn=self.config.async_postgres_dsn)
 
         # Initialize storage service
         self._storage = StorageService(
@@ -72,6 +75,16 @@ class ServiceContainer:
         # Initialize Ollama service
         self._ollama = OllamaService(base_url=self.config.ollama_base_url)
         await self._ollama.initialize()
+
+        # Initialize Image Analysis service
+        self._image_analysis = ImageAnalysisService(
+            storage=self._storage,
+            database=self._database,
+            ollama=self._ollama,
+            default_model=self.config.vision_model_default,
+            image_bucket=self.config.image_bucket,
+            max_size_mb=self.config.max_image_size_mb,
+        )
 
     async def shutdown(self) -> None:
         """Shutdown all services and cleanup resources.
@@ -157,6 +170,20 @@ class ServiceContainer:
         if self._ollama is None:
             raise RuntimeError("ServiceContainer not initialized. Call initialize() first.")
         return self._ollama
+
+    @property
+    def image_analysis(self) -> ImageAnalysisService:
+        """Get the image analysis service instance.
+
+        Returns:
+            Image analysis service instance
+
+        Raises:
+            RuntimeError: If container not initialized
+        """
+        if self._image_analysis is None:
+            raise RuntimeError("ServiceContainer not initialized. Call initialize() first.")
+        return self._image_analysis
 
 
 @asynccontextmanager

@@ -1,6 +1,6 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Tests](https://img.shields.io/badge/tests-131%20passed-brightgreen.svg)
@@ -22,6 +22,7 @@ Odin is a Python development environment configured for senior-level development
 
 - **Internal API Service**: FastAPI-based REST API with PostgreSQL, MinIO, RabbitMQ, Vault, and Ollama integrations
 - **Web Interface**: Modern FastAPI-based web application with Jinja2 templates
+- **Image Analysis** (v1.3.0): Upload images and analyze with vision-capable LLM models (LLaVA)
 - **Centralized Logging** (v1.2.0): PostgreSQL timeseries storage with LLM-powered log analysis and real-time web viewer
 - **Worker Service**: Celery-based background task processing with scheduled, batch, and event-driven tasks
 - **Task Monitoring**: Flower dashboard for real-time task monitoring and inspection
@@ -35,9 +36,22 @@ Odin is a Python development environment configured for senior-level development
 - Linting with ruff
 - 100% test coverage enforcement
 
+## 🎉 Version 1.3.0 - Image Analysis
+
+**NEW**: Upload and analyze images with vision-capable LLM models!
+
+- **📸 Image Upload**: Support for JPEG, PNG, WebP, and GIF formats
+- **🤖 LLM Vision**: Analyze images with LLaVA and other vision models
+- **💾 Persistent Storage**: Images in MinIO, metadata in PostgreSQL
+- **🎯 Custom Prompts**: Ask specific questions about image content
+- **⚙️ Configurable**: Choose models, set size limits, customize prompts
+- **🛡️ Robust**: Automatic cleanup on failures, comprehensive error handling
+
+See [IMAGE_ANALYSIS_GUIDE.md](IMAGE_ANALYSIS_GUIDE.md) for complete documentation.
+
 ## 🎉 Version 1.2.0 - Centralized Logging System
 
-**NEW**: Comprehensive centralized logging with LLM-powered analysis!
+Comprehensive centralized logging with LLM-powered analysis!
 
 - **📊 PostgreSQL Storage**: All application and infrastructure logs in timeseries tables
 - **🔍 Advanced Search**: Full-text search with filtering by level, service, time range
@@ -331,8 +345,9 @@ The Odin development environment includes the following services:
   - **Message Queue**: RabbitMQ integration for async messaging
   - **Secret Management**: Vault integration for secure secrets
   - **LLM Operations**: Ollama integration for text generation
+  - **Image Analysis** (v1.3.0): Vision-capable LLM models for image understanding
   - **Health Checks**: Service status monitoring
-- Documentation: See `API_GUIDE.md` for detailed API documentation
+- Documentation: See `API_GUIDE.md` and `IMAGE_ANALYSIS_GUIDE.md` for detailed documentation
 
 #### Ollama
 - AI/ML model server for running local LLMs

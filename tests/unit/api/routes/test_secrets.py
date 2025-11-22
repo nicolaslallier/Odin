@@ -68,9 +68,10 @@ class TestSecretsRoutes:
     def test_write_secret_error(self, client: TestClient, app: FastAPI) -> None:
         """Test writing a secret with error."""
         from src.api.routes.secrets import get_vault_service
+        from src.api.exceptions import VaultError
 
         mock_vault = MagicMock()
-        mock_vault.write_secret = MagicMock(side_effect=Exception("Vault error"))
+        mock_vault.write_secret = MagicMock(side_effect=VaultError("Vault error"))
 
         app.dependency_overrides[get_vault_service] = lambda: mock_vault
 
@@ -107,9 +108,10 @@ class TestSecretsRoutes:
     def test_read_secret_not_found(self, client: TestClient, app: FastAPI) -> None:
         """Test reading a non-existent secret."""
         from src.api.routes.secrets import get_vault_service
+        from src.api.exceptions import ResourceNotFoundError
 
         mock_vault = MagicMock()
-        mock_vault.read_secret = MagicMock(return_value=None)
+        mock_vault.read_secret = MagicMock(side_effect=ResourceNotFoundError("Secret not found"))
 
         app.dependency_overrides[get_vault_service] = lambda: mock_vault
 
@@ -124,9 +126,10 @@ class TestSecretsRoutes:
     def test_read_secret_error(self, client: TestClient, app: FastAPI) -> None:
         """Test reading a secret with error."""
         from src.api.routes.secrets import get_vault_service
+        from src.api.exceptions import VaultError
 
         mock_vault = MagicMock()
-        mock_vault.read_secret = MagicMock(side_effect=Exception("Vault error"))
+        mock_vault.read_secret = MagicMock(side_effect=VaultError("Vault error"))
 
         app.dependency_overrides[get_vault_service] = lambda: mock_vault
 
@@ -159,9 +162,10 @@ class TestSecretsRoutes:
     def test_delete_secret_error(self, client: TestClient, app: FastAPI) -> None:
         """Test deleting a secret with error."""
         from src.api.routes.secrets import get_vault_service
+        from src.api.exceptions import VaultError
 
         mock_vault = MagicMock()
-        mock_vault.delete_secret = MagicMock(side_effect=Exception("Vault error"))
+        mock_vault.delete_secret = MagicMock(side_effect=VaultError("Vault error"))
 
         app.dependency_overrides[get_vault_service] = lambda: mock_vault
 

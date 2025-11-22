@@ -152,26 +152,28 @@ class TestStorageService:
             assert result == ["file1.txt", "file2.txt"]
             mock_client.list_objects.assert_called_once_with("bucket", prefix="")
 
-    def test_health_check_success(self, storage_service: StorageService) -> None:
+    @pytest.mark.asyncio
+    async def test_health_check_success(self, storage_service: StorageService) -> None:
         """Test health check returns True when MinIO is accessible."""
         with patch.object(storage_service, "get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.list_buckets.return_value = []
             mock_get_client.return_value = mock_client
             
-            result = storage_service.health_check()
+            result = await storage_service.health_check()
             
             assert result is True
             mock_client.list_buckets.assert_called_once()
 
-    def test_health_check_failure(self, storage_service: StorageService) -> None:
+    @pytest.mark.asyncio
+    async def test_health_check_failure(self, storage_service: StorageService) -> None:
         """Test health check returns False when MinIO is not accessible."""
         with patch.object(storage_service, "get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.list_buckets.side_effect = Exception("Connection failed")
             mock_get_client.return_value = mock_client
             
-            result = storage_service.health_check()
+            result = await storage_service.health_check()
             
             assert result is False
 

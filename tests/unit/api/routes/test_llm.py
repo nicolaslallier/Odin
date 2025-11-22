@@ -34,8 +34,17 @@ class TestLLMRoutes:
     @pytest.fixture
     def app(self, mock_config: APIConfig) -> FastAPI:
         """Create a test FastAPI app."""
+        from unittest.mock import MagicMock
+        from src.api.services.container import ServiceContainer
+        
         app = FastAPI()
         app.state.config = mock_config
+        
+        # Create a mock container
+        mock_container = MagicMock(spec=ServiceContainer)
+        mock_container.ollama = AsyncMock()
+        app.state.container = mock_container
+        
         app.include_router(router)
         return app
 
@@ -84,9 +93,10 @@ class TestLLMRoutes:
     def test_list_models_error(self, client: TestClient, app: FastAPI) -> None:
         """Test model listing with error."""
         from src.api.routes.llm import get_ollama_service
+        from src.api.exceptions import LLMError
         
         mock_ollama = AsyncMock()
-        mock_ollama.list_models = AsyncMock(side_effect=Exception("Connection error"))
+        mock_ollama.list_models = AsyncMock(side_effect=LLMError("Connection error"))
         
         app.dependency_overrides[get_ollama_service] = lambda: mock_ollama
         
@@ -101,9 +111,10 @@ class TestLLMRoutes:
     def test_generate_text_error(self, client: TestClient, app: FastAPI) -> None:
         """Test text generation with error."""
         from src.api.routes.llm import get_ollama_service
+        from src.api.exceptions import LLMError
         
         mock_ollama = AsyncMock()
-        mock_ollama.generate_text = AsyncMock(side_effect=Exception("Generation error"))
+        mock_ollama.generate_text = AsyncMock(side_effect=LLMError("Generation error"))
         
         app.dependency_overrides[get_ollama_service] = lambda: mock_ollama
         

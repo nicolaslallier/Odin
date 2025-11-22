@@ -1,5 +1,201 @@
 # Release Notes
 
+## Version 1.3.0 - Image Analysis with Vision Models
+
+**Release Date**: November 22, 2025  
+**Status**: Released
+
+### Overview
+
+Major feature release adding comprehensive image analysis capabilities with vision-capable LLM models. Users can upload images through a web interface or API, and receive AI-generated descriptions powered by LLaVA (or other vision models). Images are stored in MinIO with metadata persisted in PostgreSQL.
+
+### Key Features
+
+#### Image Analysis API
+- **POST /llm/analyze-image**: Upload and analyze images
+- **GET /llm/analyze-image**: List all analyses
+- **GET /llm/analyze-image/{id}**: Retrieve specific analysis
+- **DELETE /llm/analyze-image/{id}**: Delete analysis and image
+
+#### Web Portal Integration
+- **Image Analyzer Page**: Accessible from main navigation menu
+- **User-Friendly Interface**: Drag-and-drop image upload with optional custom prompts
+- **Analysis History**: View all previous analyses with timestamps
+- **Real-Time Feedback**: Verbose error messages and success notifications
+
+#### Vision Model Support
+- **Default Model**: LLaVA (llava:latest)
+- **Configurable**: Support for any vision-capable Ollama model
+- **Custom Prompts**: Ask specific questions about image content
+
+#### Storage Architecture
+- **MinIO**: Persistent image storage in dedicated bucket
+- **PostgreSQL**: Metadata (filename, description, model, timestamps)
+- **Unique Keys**: Timestamp-based keys prevent conflicts
+
+#### Supported Image Formats
+- JPEG (image/jpeg)
+- PNG (image/png)
+- WebP (image/webp)
+- GIF (image/gif)
+
+#### Configuration Options
+New environment variables:
+- `VISION_MODEL_DEFAULT`: Default vision model (default: "llava:latest")
+- `IMAGE_BUCKET`: MinIO bucket name (default: "images")
+- `MAX_IMAGE_SIZE_MB`: Maximum image size (default: 10)
+- `C_FORCE_ROOT`: Suppress Celery root warning in Docker (default: true)
+
+### Technical Implementation
+
+#### New Components
+
+**Domain Layer**:
+- `ImageAnalysis` entity with comprehensive metadata
+
+**Repository Layer**:
+- `ImageRepository` for CRUD operations
+- Automatic `image_analysis` table creation
+
+**Service Layer**:
+- `OllamaService.analyze_image()`: Vision API with base64 encoding
+- `ImageAnalysisService`: Orchestration of storage + LLM + database
+
+**Web Layer**:
+- `image_analyzer.py`: Web page route handler
+- `image_analyzer.html`: Upload form and history display
+- `image_analyzer.js`: Real-time upload and verbose error logging
+
+**Infrastructure**:
+- Nginx proxy configuration for API access
+- 20MB upload size limit
+- URL rewriting for clean API paths
+
+**Database Schema**:
+```sql
+CREATE TABLE image_analysis (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    bucket VARCHAR(100) NOT NULL,
+    object_key VARCHAR(500) NOT NULL,
+    content_type VARCHAR(100) NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    llm_description TEXT,
+    model_used VARCHAR(100),
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+```
+
+#### Testing
+Comprehensive test coverage following TDD:
+- Unit tests for repository, services, and routes
+- Integration tests for end-to-end workflows
+- Mock-based testing for external dependencies
+
+### Bug Fixes
+
+#### Nginx Routing
+- Fixed `/api/` proxy to correctly strip prefix and route to backend
+- Added rewrite rule for clean API paths
+
+#### Ollama Service
+- Improved error messages with detailed HTTP status and response bodies
+- Fixed connection handling during development auto-reload
+
+#### Celery Workers
+- Added `C_FORCE_ROOT=true` to suppress security warning in Docker
+- Proper environment configuration in docker-compose.yml
+
+### Access Information
+
+#### Web Interface
+- **Image Analyzer**: http://localhost/image-analyzer
+- Upload images with optional prompts
+- View analysis history
+
+#### API Endpoints (via Nginx)
+- **Base URL**: http://localhost/api/
+- **Analyze Image**: POST /api/llm/analyze-image
+- **List Analyses**: GET /api/llm/analyze-image
+- **Get Analysis**: GET /api/llm/analyze-image/{id}
+- **Delete Analysis**: DELETE /api/llm/analyze-image/{id}
+
+### Migration from 1.2.0 to 1.3.0
+
+1. **Update environment variables** (optional):
+   ```bash
+   # Add to .env file
+   VISION_MODEL_DEFAULT=llava:latest
+   IMAGE_BUCKET=images
+   MAX_IMAGE_SIZE_MB=10
+   C_FORCE_ROOT=true
+   ```
+
+2. **Pull vision model**:
+   ```bash
+   docker exec -it odin-ollama ollama pull llava:latest
+   ```
+
+3. **Restart services**:
+   ```bash
+   docker-compose restart api nginx worker beat
+   ```
+
+4. **Verify**:
+   ```bash
+   # Check API health
+   curl http://localhost/health
+   
+   # Access web interface
+   open http://localhost/image-analyzer
+   ```
+
+### Performance Characteristics
+
+- **Small images (< 1MB)**: ~2-5 seconds
+- **Medium images (1-5MB)**: ~5-10 seconds
+- **Large images (5-10MB)**: ~10-20 seconds
+
+Processing time depends on image size, model size, and available hardware.
+
+### Documentation
+
+New comprehensive documentation:
+- **IMAGE_ANALYSIS_GUIDE.md**: Complete user guide with API examples
+- **RELEASE_NOTES_v1.3.0.md**: Detailed release notes
+- **Updated README.md**: Feature overview and version 1.3.0 badge
+
+### Known Limitations
+
+1. **Model Availability**: Requires vision-capable models to be pulled first
+2. **Synchronous Processing**: Analysis is synchronous (may add async queue in future)
+3. **Single Image**: One image per request (batch support in future)
+4. **No Image Retrieval**: Cannot download analyzed images via API (future enhancement)
+
+### Future Enhancements
+
+Planned for future versions:
+- Batch image upload and analysis
+- Image search by description content
+- Thumbnail generation
+- Direct image download via API
+- Auto-tagging based on descriptions
+- Webhook notifications
+
+### Security Considerations
+
+- File type validation prevents malicious uploads
+- Size limits prevent DoS attacks
+- Unique object keys prevent overwrites
+- Credentials required for MinIO and database access
+
+### Contributors
+
+- Nicolas Lallier - Image analysis feature development, web integration, and bug fixes
+
+---
+
 ## Version 1.1.0 - Health Monitoring Dashboard
 
 **Release Date**: 2025-11-22  

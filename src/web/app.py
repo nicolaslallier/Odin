@@ -83,11 +83,13 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     from src.web.routes.tasks import router as tasks_router
     from src.web.routes.health import router as health_router
     from src.web.routes.logs import router as logs_router
+    from src.web.routes.image_analyzer import router as image_analyzer_router
 
     app.include_router(home_router)
     app.include_router(tasks_router)
     app.include_router(health_router)
     app.include_router(logs_router)
+    app.include_router(image_analyzer_router)
 
     # Add health check endpoint
     @app.get("/health")

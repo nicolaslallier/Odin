@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import hvac
 import pytest
 
+from src.api.exceptions import ResourceNotFoundError
 from src.api.services.vault import VaultService
 
 
@@ -67,16 +69,15 @@ class TestVaultService:
                 path="secret/data/myapp"
             )
 
-    def test_read_secret_returns_none_when_not_found(self, vault_service: VaultService) -> None:
-        """Test read_secret returns None when secret does not exist."""
+    def test_read_secret_raises_not_found_when_not_found(self, vault_service: VaultService) -> None:
+        """Test read_secret raises ResourceNotFoundError when secret does not exist."""
         with patch.object(vault_service, "get_client") as mock_get_client:
             mock_client = MagicMock()
-            mock_client.secrets.kv.v2.read_secret_version.side_effect = Exception("Not found")
+            mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath()
             mock_get_client.return_value = mock_client
             
-            result = vault_service.read_secret("secret/data/nonexistent")
-            
-            assert result is None
+            with pytest.raises(ResourceNotFoundError):
+                vault_service.read_secret("secret/data/nonexistent")
 
     def test_delete_secret_success(self, vault_service: VaultService) -> None:
         """Test delete_secret removes a secret from Vault."""
@@ -109,33 +110,35 @@ class TestVaultService:
         """Test list_secrets returns empty list when path does not exist."""
         with patch.object(vault_service, "get_client") as mock_get_client:
             mock_client = MagicMock()
-            mock_client.secrets.kv.v2.list_secrets.side_effect = Exception("Not found")
+            mock_client.secrets.kv.v2.list_secrets.side_effect = hvac.exceptions.InvalidPath()
             mock_get_client.return_value = mock_client
             
             result = vault_service.list_secrets("secret/data/nonexistent")
             
             assert result == []
 
-    def test_health_check_success(self, vault_service: VaultService) -> None:
+    @pytest.mark.asyncio
+    async def test_health_check_success(self, vault_service: VaultService) -> None:
         """Test health check returns True when Vault is accessible."""
         with patch.object(vault_service, "get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
             mock_get_client.return_value = mock_client
             
-            result = vault_service.health_check()
+            result = await vault_service.health_check()
             
             assert result is True
             mock_client.is_authenticated.assert_called_once()
 
-    def test_health_check_failure(self, vault_service: VaultService) -> None:
+    @pytest.mark.asyncio
+    async def test_health_check_failure(self, vault_service: VaultService) -> None:
         """Test health check returns False when Vault is not accessible."""
         with patch.object(vault_service, "get_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.is_authenticated.side_effect = Exception("Connection failed")
             mock_get_client.return_value = mock_client
             
-            result = vault_service.health_check()
+            result = await vault_service.health_check()
             
             assert result is False
 

@@ -7,7 +7,7 @@ Single Responsibility Principle (SRP) from SOLID.
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
@@ -17,6 +17,16 @@ router = APIRouter(tags=["home"])
 # Configure templates
 templates_dir = Path(__file__).parent.parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
+
+
+@router.get("/ping")
+async def health_ping() -> JSONResponse:
+    """Simple health check endpoint.
+    
+    Returns:
+        JSON response with healthy status
+    """
+    return JSONResponse({"status": "healthy"})
 
 
 @router.get("/", response_class=HTMLResponse)

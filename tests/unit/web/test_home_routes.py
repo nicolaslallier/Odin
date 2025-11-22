@@ -94,20 +94,20 @@ class TestHomeRouteHandlers:
         assert response1.text == response2.text
 
     def test_health_endpoint_returns_200(self, client: TestClient) -> None:
-        """Test that health endpoint returns 200 status code."""
-        response = client.get("/health")
+        """Test that ping endpoint returns 200 status code."""
+        response = client.get("/ping")
 
         assert response.status_code == 200
 
     def test_health_endpoint_returns_json(self, client: TestClient) -> None:
-        """Test that health endpoint returns JSON."""
-        response = client.get("/health")
+        """Test that ping endpoint returns JSON."""
+        response = client.get("/ping")
 
         assert response.headers["content-type"] == "application/json"
 
     def test_health_endpoint_has_status_field(self, client: TestClient) -> None:
-        """Test that health endpoint returns status field."""
-        response = client.get("/health")
+        """Test that ping endpoint returns status field."""
+        response = client.get("/ping")
         data = response.json()
 
         assert "status" in data

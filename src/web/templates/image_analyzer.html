@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Image Analyzer{% endblock %}
+
+{% block content %}
+  <h2>Image Analyzer</h2>
+  <form id="image-analyzer-form" method="post" enctype="multipart/form-data">
+    <label for="file">Image file:</label>
+    <input type="file" id="file" name="file" accept="image/*" required>
+    <label for="prompt">Prompt (optional):</label>
+    <input type="text" id="prompt" name="prompt" placeholder="Describe this image">
+    <button type="submit">Analyze Image</button>
+  </form>
+  <div id="result">
+    <!-- Analysis results will be rendered here -->
+  </div>
+  <hr>
+  <div id="history">
+    <h3>Analysis History</h3>
+    <!-- Previous analyses will be rendered here -->
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{{ url_for('static', path='/js/image_analyzer.js') }}"></script>
+{% endblock %}
