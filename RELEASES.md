@@ -1,5 +1,248 @@
 # Release Notes
 
+## Version 0.4.0 - Celery Worker Service
+
+**Release Date**: 2025-11-22  
+**Status**: Released
+
+### Overview
+
+Major feature release adding a comprehensive Celery-based background task processing system. This release introduces a robust worker service for handling scheduled tasks, batch processing, and event-driven operations, complete with real-time monitoring via Flower. The worker integrates seamlessly with existing infrastructure (RabbitMQ as broker, PostgreSQL as result backend) and follows TDD and SOLID principles with 100% test coverage.
+
+### Features
+
+#### Worker Service Architecture
+- **Celery Worker** - Async task execution with configurable concurrency
+- **Celery Beat** - Periodic task scheduler with cron-like scheduling
+- **Flower Dashboard** - Real-time monitoring and task inspection
+- **RabbitMQ Broker** - Message distribution and task routing
+- **PostgreSQL Result Backend** - Task state and result storage
+- **100% Test Coverage** - Comprehensive unit and integration tests
+
+#### Task Types
+
+**Scheduled Tasks** (`src/worker/tasks/scheduled.py`):
+- `health_check_services` - Monitor all infrastructure services (every 5 minutes)
+- `cleanup_old_task_results` - Remove old task results (daily at 2:00 AM)
+- `generate_daily_report` - Generate task execution summary (daily at midnight)
+
+**Batch Processing Tasks** (`src/worker/tasks/batch.py`):
+- `process_bulk_data` - Process large datasets in configurable batches
+- `process_file_batch` - Process multiple files with optional MinIO upload
+- `send_bulk_notifications` - Send notifications with rate limiting
+
+**Event-Driven Tasks** (`src/worker/tasks/events.py`):
+- `handle_user_registration` - Process user registration with onboarding
+- `process_webhook` - Handle incoming webhook events with validation
+- `send_notification` - Send notifications via multiple channels with retry logic
+
+#### Configuration Management
+
+**WorkerConfig** (`src/worker/config.py`):
+- Pydantic-based configuration with validation
+- Environment variable loading with defaults
+- Immutable configuration (frozen=True)
+- Validation for positive integers (time limits, concurrency)
+
+**Configuration Options**:
+- `CELERY_BROKER_URL` - RabbitMQ connection string
+- `CELERY_RESULT_BACKEND` - PostgreSQL connection string
+- `CELERY_TASK_TRACK_STARTED` - Enable task state tracking
+- `CELERY_TASK_TIME_LIMIT` - Maximum task execution time (3600s default)
+- `CELERY_WORKER_CONCURRENCY` - Number of worker processes (4 default)
+- `CELERY_WORKER_MAX_TASKS_PER_CHILD` - Tasks before worker restart (1000 default)
+- `FLOWER_PORT` - Flower dashboard port (5555 default)
+- `FLOWER_BASIC_AUTH` - Flower authentication (admin:admin default)
+
+#### Docker Integration
+
+**Worker Service**:
+- Dedicated container for task execution
+- Auto-reload in development mode
+- Configurable concurrency and task limits
+- Depends on PostgreSQL and RabbitMQ
+
+**Beat Service**:
+- Separate container for schedule management
+- Cron-like scheduling with timedelta and crontab support
+- Depends on worker service
+
+**Flower Service**:
+- Monitoring dashboard with WebSocket support
+- Basic authentication for security
+- Accessible via nginx at `/flower/`
+
+#### API and Web Integration
+
+**TaskService** (`src/api/services/task_service.py`):
+- Service layer for task dispatching from API
+- Methods for dispatching bulk data, notifications, user registration
+- Task status checking with AsyncResult
+- Follows Single Responsibility Principle
+
+**Web Routes** (`src/web/routes/tasks.py`):
+- `/tasks/process-data` - Dispatch bulk data processing
+- `/tasks/send-notification` - Dispatch notification
+- `/tasks/{task_id}` - Get task status and results
+- Pydantic models for request/response validation
+
+#### Makefile Commands
+
+**Worker Management**:
+- `make worker-dev` - Start worker in development mode
+- `make worker-logs` - View worker logs
+- `make worker-shell` - Access worker container shell
+- `make worker-test` - Run worker tests
+- `make worker-status` - Check worker, beat, and flower status
+
+**Beat and Flower**:
+- `make beat-start` - Start Celery Beat scheduler
+- `make beat-logs` - View Beat logs
+- `make flower-start` - Start Flower dashboard
+- `make flower-logs` - View Flower logs
+
+### Technical Details
+
+#### New Dependencies
+- `celery[sqlalchemy]>=5.3.0` - Core Celery with SQLAlchemy backend
+- `kombu>=5.3.0` - RabbitMQ messaging library
+- `flower>=2.0.0` - Real-time monitoring dashboard
+- `redis>=5.0.0` - Optional for caching
+
+#### Project Structure
+```
+src/worker/
+├── __init__.py              - Package initialization
+├── celery_app.py            - Celery application factory with auto-discovery
+├── config.py                - Worker configuration with Pydantic
+├── beat_schedule.py         - Periodic task schedule configuration
+└── tasks/
+    ├── __init__.py
+    ├── scheduled.py         - Scheduled/periodic tasks
+    ├── batch.py             - Batch processing tasks
+    └── events.py            - Event-driven tasks
+
+tests/
+├── unit/worker/
+│   ├── test_config.py              - Configuration tests
+│   ├── test_celery_app.py          - Celery app factory tests
+│   └── tasks/
+│       ├── test_scheduled.py       - Scheduled task tests
+│       ├── test_batch.py           - Batch task tests
+│       └── test_events.py          - Event task tests
+└── integration/worker/
+    ├── test_task_execution.py      - End-to-end task tests
+    └── test_beat_schedule.py       - Beat scheduler tests
+```
+
+### Service Access URLs
+
+After implementation:
+- **Flower Dashboard**: http://localhost/flower/ (admin:admin)
+- **Worker Logs**: `make worker-logs`
+- **Beat Logs**: `make beat-logs`
+- **Task Status API**: `GET /tasks/{task_id}`
+
+### Code Quality
+
+#### Test Coverage
+- **100% coverage** maintained across all modules
+- 40+ unit tests for worker components
+- Integration tests for end-to-end task execution
+- Beat schedule configuration tests
+- Mock-based testing for external dependencies
+
+#### Type Safety
+- Full type hints on all functions and classes
+- Strict mypy configuration enforced
+- Pydantic models for runtime validation
+- Generic types for flexible task signatures
+
+#### Documentation
+- Comprehensive WORKER_GUIDE.md with examples
+- Docstrings following Google style
+- Inline comments for complex logic
+- Architecture and best practices documentation
+
+### Breaking Changes
+
+None - All changes are additive and backward compatible
+
+### Migration from 0.3.0 to 0.4.0
+
+1. Update dependencies:
+   ```bash
+   make rebuild
+   ```
+
+2. Update environment configuration:
+   ```bash
+   # Add to .env file
+   CELERY_BROKER_URL=amqp://odin:odin_dev_password@rabbitmq:5672//
+   CELERY_RESULT_BACKEND=db+postgresql://odin:odin_dev_password@postgresql:5432/odin_db
+   CELERY_TASK_TRACK_STARTED=true
+   CELERY_TASK_TIME_LIMIT=3600
+   CELERY_WORKER_CONCURRENCY=4
+   CELERY_WORKER_MAX_TASKS_PER_CHILD=1000
+   FLOWER_PORT=5555
+   FLOWER_BASIC_AUTH=admin:admin
+   ```
+
+3. Start all services:
+   ```bash
+   make services-up
+   ```
+
+4. Access Flower dashboard:
+   ```
+   http://localhost/flower/
+   ```
+
+5. Run tests to verify:
+   ```bash
+   make test-worker
+   ```
+
+### Known Limitations
+
+- Worker runs in development mode by default (use production target for deployment)
+- Flower basic auth credentials are in environment variables (use proper secrets management in production)
+- Beat schedule is code-based (consider database-backed schedule for dynamic scheduling)
+- Task results expire after 24 hours by default
+
+### Future Enhancements
+
+- Dynamic task scheduling via database
+- Advanced retry strategies with exponential backoff
+- Task priority queues
+- Canvas (chains, groups, chords) support
+- Result backend caching with Redis
+- Task routing to specialized workers
+- Webhook endpoints for external task triggers
+- Task result persistence beyond 24 hours
+
+### Security Notes
+
+- Flower dashboard protected with basic authentication
+- RabbitMQ requires username/password authentication
+- PostgreSQL credentials required for result backend
+- Task inputs should be validated to prevent injection attacks
+- Consider enabling SSL/TLS for production deployments
+
+### Performance
+
+- Configurable worker concurrency for scaling
+- Batch processing prevents memory overflow
+- Task prefetch multiplier set to 1 for fair distribution
+- Worker restart after 1000 tasks prevents memory leaks
+- Connection pooling for database operations
+
+### Contributors
+
+- Nicolas Lallier - Worker service development and testing
+
+---
+
 ## Version 0.3.0 - Internal API Service
 
 **Release Date**: 2025-11-22  

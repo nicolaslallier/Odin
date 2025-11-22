@@ -224,6 +224,95 @@ services:
       retries: 3
       start_period: 20s
 
+  # Celery worker for background tasks
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-worker
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-odin}:${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=db+postgresql://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - CELERY_TASK_TRACK_STARTED=${CELERY_TASK_TRACK_STARTED:-true}
+      - CELERY_TASK_TIME_LIMIT=${CELERY_TASK_TIME_LIMIT:-3600}
+      - CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-4}
+      - CELERY_WORKER_MAX_TASKS_PER_CHILD=${CELERY_WORKER_MAX_TASKS_PER_CHILD:-1000}
+    working_dir: /app
+    command: celery -A src.worker.celery_app:celery_app worker --loglevel=info
+    networks:
+      - odin-network
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    restart: unless-stopped
+
+  # Celery Beat scheduler for periodic tasks
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-beat
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-odin}:${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=db+postgresql://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - CELERY_TASK_TRACK_STARTED=${CELERY_TASK_TRACK_STARTED:-true}
+      - CELERY_TASK_TIME_LIMIT=${CELERY_TASK_TIME_LIMIT:-3600}
+    working_dir: /app
+    command: celery -A src.worker.celery_app:celery_app beat --loglevel=info
+    networks:
+      - odin-network
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      worker:
+        condition: service_started
+    restart: unless-stopped
+
+  # Flower monitoring dashboard for Celery
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-flower
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-odin}:${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=db+postgresql://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - FLOWER_PORT=${FLOWER_PORT:-5555}
+      - FLOWER_BASIC_AUTH=${FLOWER_BASIC_AUTH:-admin:admin}
+    working_dir: /app
+    command: celery -A src.worker.celery_app:celery_app flower --port=5555 --basic-auth=${FLOWER_BASIC_AUTH:-admin:admin}
+    networks:
+      - odin-network
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      worker:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   postgresql-data:
   n8n-data:

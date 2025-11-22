@@ -1,6 +1,6 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -20,8 +20,10 @@ Odin is a Python development environment configured for senior-level development
 
 - **Internal API Service**: FastAPI-based REST API with PostgreSQL, MinIO, RabbitMQ, Vault, and Ollama integrations
 - **Web Interface**: Modern FastAPI-based web application with Jinja2 templates
+- **Worker Service**: Celery-based background task processing with scheduled, batch, and event-driven tasks
+- **Task Monitoring**: Flower dashboard for real-time task monitoring and inspection
 - Python 3.12 development environment
-- Multi-service Docker infrastructure (nginx, PostgreSQL, RabbitMQ, MinIO, Vault, Ollama, n8n)
+- Multi-service Docker infrastructure (nginx, PostgreSQL, RabbitMQ, MinIO, Vault, Ollama, n8n, Celery Worker, Beat, Flower)
 - Comprehensive testing framework (pytest with coverage)
 - Docker-based development workflow
 - Enhanced Makefile with service management
@@ -224,6 +226,9 @@ The Odin development environment includes the following services:
 | **nginx** | 80 | http://localhost/ | Reverse proxy for all services |
 | **Odin Web Portal** | internal | http://localhost/ | FastAPI web interface (via nginx) |
 | **Odin API** | 8001 | http://api:8001 (internal) | Internal REST API service |
+| **Celery Worker** | internal | N/A (internal) | Background task worker |
+| **Celery Beat** | internal | N/A (internal) | Periodic task scheduler |
+| **Flower** | 5555 | http://localhost/flower/ | Celery monitoring dashboard |
 | **Ollama** | 11434 | http://localhost/ollama/ | AI/ML model server |
 | **PostgreSQL** | 5432 | Direct connection | Relational database |
 | **n8n** | 5678 | http://localhost/n8n/ | Workflow automation platform |
@@ -294,6 +299,15 @@ The Odin development environment includes the following services:
 - Default credentials: minioadmin/minioadmin (configurable via .env)
 - Console: http://localhost/minio/
 - API: Access directly via `minio:9000` from within Docker network, or configure your application to use the service name
+
+#### Celery Worker Service
+- Background task processing with Celery
+- Three components: Worker (execution), Beat (scheduling), Flower (monitoring)
+- Uses RabbitMQ as message broker
+- Uses PostgreSQL as result backend
+- Task types: Scheduled, batch processing, event-driven
+- Access Flower dashboard at: http://localhost/flower/ (admin/admin)
+- See [WORKER_GUIDE.md](WORKER_GUIDE.md) for detailed documentation
 
 ### Docker Commands
 

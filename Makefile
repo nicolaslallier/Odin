@@ -1,8 +1,14 @@
 .PHONY: help setup build rebuild up down restart ps logs shell install clean \
         test test-unit test-integration test-regression test-watch coverage \
+        test-api test-api-unit test-api-integration coverage-api \
+        test-web test-web-unit test-web-integration coverage-web \
+        test-worker test-worker-unit test-worker-integration coverage-worker \
         lint format type-check quality check-all \
         services-up services-down services-restart services-logs services-status services-health \
         web-dev web-logs web-shell web-test \
+        api-dev api-logs api-shell api-test api-health \
+        worker-dev worker-logs worker-shell worker-test worker-status \
+        beat-start beat-logs flower-start flower-logs \
         db-shell db-migrate db-reset \
         init-env init-services backup restore \
         docker-prune docker-clean
@@ -46,14 +52,28 @@ help:
 	@echo "  make shell           - Access portal container shell (keeps web server running)"
 	@echo "  make shell-dev       - Start portal in interactive shell mode (no web server)"
 	@echo ""
-	@echo "$(GREEN)🧪 Testing:$(NC)"
-	@echo "  make test            - Run all tests"
-	@echo "  make test-unit       - Run unit tests only"
-	@echo "  make test-integration - Run integration tests only"
+	@echo "$(GREEN)🧪 Testing (All Components):$(NC)"
+	@echo "  make test            - Run all tests (all components)"
+	@echo "  make test-unit       - Run unit tests only (all components)"
+	@echo "  make test-integration - Run integration tests only (all components)"
 	@echo "  make test-regression - Run regression tests only"
 	@echo "  make test-services   - Run service accessibility tests"
 	@echo "  make test-watch      - Run tests in watch mode"
 	@echo "  make coverage        - Generate coverage report (HTML + terminal)"
+	@echo ""
+	@echo "$(GREEN)🧪 Component-Specific Testing:$(NC)"
+	@echo "  make test-api        - Run all API tests (unit + integration)"
+	@echo "  make test-api-unit   - Run API unit tests only"
+	@echo "  make test-api-integration - Run API integration tests only"
+	@echo "  make coverage-api    - Generate API coverage report"
+	@echo "  make test-web        - Run all Web tests (unit + integration)"
+	@echo "  make test-web-unit   - Run Web unit tests only"
+	@echo "  make test-web-integration - Run Web integration tests only"
+	@echo "  make coverage-web    - Generate Web coverage report"
+	@echo "  make test-worker     - Run all Worker tests (unit + integration)"
+	@echo "  make test-worker-unit - Run Worker unit tests only"
+	@echo "  make test-worker-integration - Run Worker integration tests only"
+	@echo "  make coverage-worker - Generate Worker coverage report"
 	@echo "  make check-services  - Check which services are accessible (diagnostic)"
 	@echo ""
 	@echo "$(GREEN)🔍 Code Quality:$(NC)"
@@ -76,6 +96,24 @@ help:
 	@echo "  make web-logs        - View web application logs"
 	@echo "  make web-shell       - Access web container shell"
 	@echo "  make web-test        - Run web application tests only"
+	@echo ""
+	@echo "$(GREEN)⚙️  API Service:$(NC)"
+	@echo "  make api-dev         - Start API server in development mode"
+	@echo "  make api-logs        - View API service logs"
+	@echo "  make api-shell       - Access API container shell"
+	@echo "  make api-test        - Run API tests only (alias for test-api)"
+	@echo "  make api-health      - Check API health"
+	@echo ""
+	@echo "$(GREEN)⚡ Worker Service:$(NC)"
+	@echo "  make worker-dev      - Start Worker in development mode"
+	@echo "  make worker-logs     - View Worker service logs"
+	@echo "  make worker-shell    - Access Worker container shell"
+	@echo "  make worker-test     - Run Worker tests only (alias for test-worker)"
+	@echo "  make worker-status   - Check worker, beat, and flower status"
+	@echo "  make beat-start      - Start Celery Beat scheduler"
+	@echo "  make beat-logs       - View Celery Beat logs"
+	@echo "  make flower-start    - Start Flower monitoring dashboard"
+	@echo "  make flower-logs     - View Flower logs"
 	@echo ""
 	@echo "$(GREEN)🗄️  Database:$(NC)"
 	@echo "  make db-shell        - Access PostgreSQL shell"
@@ -245,6 +283,77 @@ coverage:
 	@echo "$(YELLOW)HTML report: htmlcov/index.html$(NC)"
 
 # ============================================================================
+# Component-Specific Testing
+# ============================================================================
+
+# API Component Tests
+test-api:
+	@echo "$(BLUE)Running all API tests (unit + integration)...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/api/ tests/integration/api/ -v
+	@echo "$(GREEN)✓ API tests complete!$(NC)"
+
+test-api-unit:
+	@echo "$(BLUE)Running API unit tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/api/ -v -m unit
+	@echo "$(GREEN)✓ API unit tests complete!$(NC)"
+
+test-api-integration:
+	@echo "$(BLUE)Running API integration tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/integration/api/ -v -m integration
+	@echo "$(GREEN)✓ API integration tests complete!$(NC)"
+
+# Web Component Tests
+test-web:
+	@echo "$(BLUE)Running all Web tests (unit + integration)...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/web/ tests/integration/web/ -v
+	@echo "$(GREEN)✓ Web tests complete!$(NC)"
+
+test-web-unit:
+	@echo "$(BLUE)Running Web unit tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/web/ -v -m unit
+	@echo "$(GREEN)✓ Web unit tests complete!$(NC)"
+
+test-web-integration:
+	@echo "$(BLUE)Running Web integration tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/integration/web/ -v -m integration
+	@echo "$(GREEN)✓ Web integration tests complete!$(NC)"
+
+# Worker Component Tests
+test-worker:
+	@echo "$(BLUE)Running all Worker tests (unit + integration)...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/worker/ tests/integration/worker/ -v
+	@echo "$(GREEN)✓ Worker tests complete!$(NC)"
+
+test-worker-unit:
+	@echo "$(BLUE)Running Worker unit tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/worker/ -v -m unit
+	@echo "$(GREEN)✓ Worker unit tests complete!$(NC)"
+
+test-worker-integration:
+	@echo "$(BLUE)Running Worker integration tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/integration/worker/ -v -m integration
+	@echo "$(GREEN)✓ Worker integration tests complete!$(NC)"
+
+# Component-Specific Coverage
+coverage-api:
+	@echo "$(BLUE)Generating API coverage report...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/api/ tests/integration/api/ --cov=src/api --cov-report=html --cov-report=term-missing --cov-report=xml
+	@echo "$(GREEN)✓ API coverage report generated!$(NC)"
+	@echo "$(YELLOW)HTML report: htmlcov/index.html$(NC)"
+
+coverage-web:
+	@echo "$(BLUE)Generating Web coverage report...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/web/ tests/integration/web/ --cov=src/web --cov-report=html --cov-report=term-missing --cov-report=xml
+	@echo "$(GREEN)✓ Web coverage report generated!$(NC)"
+	@echo "$(YELLOW)HTML report: htmlcov/index.html$(NC)"
+
+coverage-worker:
+	@echo "$(BLUE)Generating Worker coverage report...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/worker/ tests/integration/worker/ --cov=src/worker --cov-report=html --cov-report=term-missing --cov-report=xml
+	@echo "$(GREEN)✓ Worker coverage report generated!$(NC)"
+	@echo "$(YELLOW)HTML report: htmlcov/index.html$(NC)"
+
+# ============================================================================
 # Code Quality
 # ============================================================================
 
@@ -406,11 +515,8 @@ web-shell:
 	@echo "$(GREEN)Accessing web container shell...$(NC)"
 	@$(DOCKER_COMPOSE) exec portal /bin/bash || $(DOCKER_COMPOSE) run --rm portal /bin/bash
 
-# Run web application tests only
-web-test:
-	@echo "$(BLUE)Running web application tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/web/ tests/integration/web/ -v
-	@echo "$(GREEN)✓ Web tests complete!$(NC)"
+# Run web application tests only (alias for test-web)
+web-test: test-web
 
 # ============================================================================
 # API Service
@@ -432,16 +538,62 @@ api-shell:
 	@echo "$(GREEN)Accessing API container shell...$(NC)"
 	@$(DOCKER_COMPOSE) exec api /bin/bash || $(DOCKER_COMPOSE) run --rm api /bin/bash
 
-# Run API tests only
-api-test:
-	@echo "$(BLUE)Running API tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm api pytest tests/unit/api/ tests/integration/api/ -v
-	@echo "$(GREEN)✓ API tests complete!$(NC)"
+# Run API tests only (alias for test-api)
+api-test: test-api
 
 # Check API health
 api-health:
 	@echo "$(BLUE)Checking API health...$(NC)"
 	@$(DOCKER_COMPOSE) exec api curl -f http://localhost:8001/health || echo "$(RED)API is not responding$(NC)"
+
+# ============================================================================
+# Worker Service
+# ============================================================================
+
+# Start worker in development mode
+worker-dev:
+	@echo "$(GREEN)Starting Worker in development mode...$(NC)"
+	@echo "$(YELLOW)Worker is internal only, accessible from within Docker network$(NC)"
+	@$(DOCKER_COMPOSE) up worker
+
+# View Worker service logs
+worker-logs:
+	@echo "$(BLUE)Viewing Worker service logs (Ctrl+C to exit)...$(NC)"
+	@$(DOCKER_COMPOSE) logs -f worker
+
+# Access Worker container shell
+worker-shell:
+	@echo "$(GREEN)Accessing Worker container shell...$(NC)"
+	@$(DOCKER_COMPOSE) exec worker /bin/bash || $(DOCKER_COMPOSE) run --rm worker /bin/bash
+
+# Run Worker tests only (alias for test-worker)
+worker-test: test-worker
+
+# Start Celery Beat scheduler
+beat-start:
+	@echo "$(GREEN)Starting Celery Beat scheduler...$(NC)"
+	@$(DOCKER_COMPOSE) up beat
+
+# View Beat scheduler logs
+beat-logs:
+	@echo "$(BLUE)Viewing Celery Beat logs (Ctrl+C to exit)...$(NC)"
+	@$(DOCKER_COMPOSE) logs -f beat
+
+# Start Flower monitoring dashboard
+flower-start:
+	@echo "$(GREEN)Starting Flower monitoring dashboard...$(NC)"
+	@echo "$(YELLOW)Access Flower at http://localhost/flower/$(NC)"
+	@$(DOCKER_COMPOSE) up flower
+
+# View Flower logs
+flower-logs:
+	@echo "$(BLUE)Viewing Flower logs (Ctrl+C to exit)...$(NC)"
+	@$(DOCKER_COMPOSE) logs -f flower
+
+# Check worker status
+worker-status:
+	@echo "$(BLUE)Checking worker status...$(NC)"
+	@$(DOCKER_COMPOSE) ps worker beat flower
 
 # ============================================================================
 # Database Management
