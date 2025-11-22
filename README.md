@@ -1,5 +1,9 @@
 # Odin
 
+![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![Python](https://img.shields.io/badge/python-3.12-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+
 A Python project following Test-Driven Development (TDD), SOLID principles, and industry best practices with comprehensive testing and Docker containerization.
 
 ## Overview
@@ -15,9 +19,10 @@ Odin is a Python development environment configured for senior-level development
 ## Features
 
 - Python 3.12 development environment
+- Multi-service Docker infrastructure (nginx, PostgreSQL, RabbitMQ, MinIO, Vault, Ollama, n8n)
 - Comprehensive testing framework (pytest with coverage)
 - Docker-based development workflow
-- Makefile automation for common tasks
+- Enhanced Makefile with service management
 - Type checking with mypy
 - Code formatting with black
 - Linting with ruff
@@ -38,15 +43,30 @@ git clone <repository-url>
 cd Odin
 ```
 
-2. Build and start the development environment:
+2. Configure environment variables (optional):
+```bash
+cp env.example .env
+# Edit .env with your preferred settings
+```
+
+3. Build and start the development environment:
 ```bash
 make setup
 make up
 ```
 
-3. Access the container shell:
+4. Access the container shell:
 ```bash
 make shell
+```
+
+5. Initialize services (optional):
+```bash
+# Initialize MinIO buckets
+./scripts/init-minio.sh
+
+# Check Vault status
+./scripts/init-vault.sh
 ```
 
 ## Development Setup
@@ -60,9 +80,15 @@ Odin/
 │   ├── unit/         # Unit tests
 │   ├── integration/  # Integration tests
 │   └── regression/   # Regression tests
+├── nginx/            # Nginx configuration
+│   └── nginx.conf    # Reverse proxy configuration
+├── scripts/          # Initialization scripts
+│   ├── init-vault.sh # Vault initialization script
+│   └── init-minio.sh # MinIO initialization script
 ├── .cursorrules      # Cursor AI development rules
 ├── Dockerfile        # Docker container definition
 ├── docker-compose.yml # Docker Compose configuration
+├── env.example       # Environment variables template
 ├── Makefile          # Build automation
 ├── pyproject.toml    # Python project configuration
 ├── requirements.txt  # Production dependencies
@@ -79,6 +105,9 @@ The project uses a Makefile for common development tasks:
 - `make up` - Start Docker containers
 - `make down` - Stop Docker containers
 - `make shell` - Access container shell
+- `make services-up` - Start all services (nginx, postgresql, etc.)
+- `make services-down` - Stop all services
+- `make services-logs` - View logs from all services
 
 #### Testing
 - `make test` - Run all tests
@@ -169,14 +198,62 @@ make coverage
 - Use fixtures for common setup
 - Mock external dependencies in unit tests
 
-## Docker Usage
+## Docker Services
 
-### Development Container
+The Odin development environment includes the following services:
 
-The development container includes:
-- Python 3.12
-- All development dependencies
-- Pre-configured environment
+### Service Overview
+
+| Service | Port | Access URL | Description |
+|---------|------|------------|-------------|
+| **nginx** | 80 | http://localhost/ | Reverse proxy for all services |
+| **Ollama** | 11434 | http://localhost/ollama/ | AI/ML model server |
+| **PostgreSQL** | 5432 | Direct connection | Relational database |
+| **n8n** | 5678 | http://localhost/n8n/ | Workflow automation platform |
+| **RabbitMQ** | 5672, 15672 | http://localhost/rabbitmq/ | Message broker with management UI |
+| **Vault** | 8200 | http://localhost/vault/ | Secrets management |
+| **MinIO** | 9000, 9001 | http://localhost/minio/ | S3-compatible object storage |
+
+### Service Details
+
+#### Nginx (Reverse Proxy)
+- Entry point for all services
+- Routes requests to appropriate backend services
+- Health check endpoint: http://localhost/health
+
+#### Ollama
+- AI/ML model server for running local LLMs
+- Models stored in persistent volume
+- Access via: http://localhost/ollama/
+
+#### PostgreSQL
+- Default database: `odin_db`
+- Default user: `odin` (configurable via .env)
+- Connection string: `postgresql://odin:odin_dev_password@postgresql:5432/odin_db`
+
+#### n8n
+- Workflow automation platform
+- Uses PostgreSQL for data storage
+- Default credentials: admin/admin (configurable via .env)
+- Access via: http://localhost/n8n/
+
+#### RabbitMQ
+- Message broker for async task processing
+- Management UI available
+- Default credentials: odin/odin_dev_password (configurable via .env)
+- Access via: http://localhost/rabbitmq/
+
+#### HashiCorp Vault
+- Secrets management system
+- Running in dev mode (auto-unsealed)
+- Root token: `dev-root-token` (configurable via .env)
+- Access via: http://localhost/vault/
+
+#### MinIO
+- S3-compatible object storage
+- Default credentials: minioadmin/minioadmin (configurable via .env)
+- Console: http://localhost/minio/
+- API: Access directly via `minio:9000` from within Docker network, or configure your application to use the service name
 
 ### Docker Commands
 
@@ -184,19 +261,60 @@ The development container includes:
 # Build the image
 make build
 
-# Start containers
+# Start all containers
 make up
+
+# Start only services (without app container)
+make services-up
 
 # Stop containers
 make down
+
+# Stop only services
+make services-down
+
+# View service logs
+make services-logs
 
 # Access container shell
 make shell
 ```
 
+### Environment Configuration
+
+Copy `env.example` to `.env` and customize:
+```bash
+cp env.example .env
+```
+
+Key environment variables:
+- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` - PostgreSQL configuration
+- `N8N_USER`, `N8N_PASSWORD` - n8n credentials
+- `RABBITMQ_USER`, `RABBITMQ_PASSWORD` - RabbitMQ credentials
+- `VAULT_ROOT_TOKEN` - Vault root token
+- `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` - MinIO credentials
+
 ### Volume Mounts
 
-The project directory is mounted as a volume, allowing live code editing without rebuilding the container.
+- **Project directory**: Mounted in app container for live code editing
+- **PostgreSQL data**: Persistent volume `postgresql-data`
+- **n8n workflows**: Persistent volume `n8n-data`
+- **RabbitMQ data**: Persistent volume `rabbitmq-data`
+- **Vault data**: Persistent volumes `vault-data` and `vault-logs`
+- **MinIO data**: Persistent volume `minio-data`
+- **Ollama models**: Persistent volume `ollama-models`
+
+### Service Initialization
+
+After starting services, you may want to initialize them:
+
+```bash
+# Initialize MinIO buckets
+./scripts/init-minio.sh
+
+# Check Vault status
+./scripts/init-vault.sh
+```
 
 ## Code Quality Tools
 

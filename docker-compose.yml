@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Python application service
   app:
     build:
       context: .
@@ -17,4 +18,156 @@ services:
     stdin_open: true
     tty: true
     command: /bin/bash
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - rabbitmq
+      - vault
+      - minio
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: odin-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - odin-network
+    depends_on:
+      - ollama
+      - postgresql
+      - n8n
+      - rabbitmq
+      - vault
+      - minio
+    restart: unless-stopped
+
+  # Ollama AI/ML model server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: odin-ollama
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - odin-network
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+
+  # PostgreSQL database
+  postgresql:
+    image: postgres:16-alpine
+    container_name: odin-postgresql
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-odin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odin_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-odin_db}
+    volumes:
+      - postgresql-data:/var/lib/postgresql/data
+    networks:
+      - odin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-odin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # n8n workflow automation
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: odin-n8n
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgresql
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${N8N_DB_NAME:-n8n}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-odin}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-odin_dev_password}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - odin-network
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # RabbitMQ message broker
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: odin-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-odin}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-odin_dev_password}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - odin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # HashiCorp Vault
+  vault:
+    image: hashicorp/vault:latest
+    container_name: odin-vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+      - VAULT_ADDR=http://0.0.0.0:8200
+    volumes:
+      - vault-data:/vault/data
+      - vault-logs:/vault/logs
+    networks:
+      - odin-network
+    command: ["vault", "server", "-dev"]
+    restart: unless-stopped
+
+  # MinIO object storage
+  minio:
+    image: minio/minio:latest
+    container_name: odin-minio
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio-data:/data
+    networks:
+      - odin-network
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  postgresql-data:
+  n8n-data:
+  rabbitmq-data:
+  vault-data:
+  vault-logs:
+  minio-data:
+  ollama-models:
+
+networks:
+  odin-network:
+    driver: bridge
 
