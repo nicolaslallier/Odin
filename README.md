@@ -1,12 +1,24 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Tests](https://img.shields.io/badge/tests-131%20passed-brightgreen.svg)
 ![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)
 
 A Python project following Test-Driven Development (TDD), SOLID principles, and industry best practices with comprehensive testing and Docker containerization.
+
+---
+
+## 🚨 NEW in v1.6.0
+
+- **Confluence Cloud Integration**: Async statistics & analytics for any space, page-to-markdown, automatic backups, LLM-powered summaries
+- **HashiCorp Vault Secrets**: Secure credential management for Confluence, Jira, and more
+- **PostgreSQL 18 (TimescaleDB)**: Historical time-series analytics for all Confluence statistics
+
+_Read [RELEASE_NOTES_v1.6.0.md](RELEASE_NOTES_v1.6.0.md) and [CONFLUENCE_GUIDE.md](CONFLUENCE_GUIDE.md) for details_
+
+---
 
 ## Overview
 
