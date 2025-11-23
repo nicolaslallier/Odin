@@ -98,8 +98,8 @@ async def health_check_services(
     ollama_task = safe_health_check("ollama", container.ollama.health_check)
 
     # Wait for all health checks to complete
-    db_healthy, storage_healthy, queue_healthy, vault_healthy, ollama_healthy = await asyncio.gather(
-        db_task, storage_task, queue_task, vault_task, ollama_task
+    db_healthy, storage_healthy, queue_healthy, vault_healthy, ollama_healthy = (
+        await asyncio.gather(db_task, storage_task, queue_task, vault_task, ollama_task)
     )
 
     result = ServiceHealthResponse(
@@ -125,4 +125,3 @@ async def get_circuit_breaker_states() -> dict[str, str]:
     """
     cb_manager = get_circuit_breaker_manager()
     return cb_manager.get_states()
-

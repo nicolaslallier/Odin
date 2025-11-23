@@ -6,8 +6,8 @@ instances, following the Open/Closed Principle (OCP) from SOLID.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI
 
@@ -29,8 +29,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         None
     """
     # Configure structured logging with database handler
-    from src.api.logging_config import configure_logging_with_db
     import os
+
+    from src.api.logging_config import configure_logging_with_db
 
     config = app.state.config
     configure_logging_with_db(
@@ -48,6 +49,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await container.initialize()
     app.state.container = container
 
+    # Initialize WebSocket manager
+    from src.api.services.websocket import WebSocketManager
+
+    websocket_manager = WebSocketManager()
+    app.state.websocket_manager = websocket_manager
+
     # Initialize database tables
     from src.api.repositories.data_repository import create_tables
     from src.api.repositories.image_repository import create_tables as create_image_tables
@@ -59,10 +66,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # Shutdown: Cleanup services
+    await websocket_manager.cleanup()
     await container.shutdown()
 
 
-def create_app(config: Optional[APIConfig] = None) -> FastAPI:
+def create_app(config: APIConfig | None = None) -> FastAPI:
     """Create and configure a FastAPI application instance.
 
     This factory function creates a new FastAPI application with all necessary
@@ -97,9 +105,11 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     )
 
     # Global error handler for ResourceNotFoundError
-    from src.api.exceptions import ResourceNotFoundError
-    from fastapi.responses import JSONResponse
     from fastapi import Request
+    from fastapi.responses import JSONResponse
+
+    from src.api.exceptions import ResourceNotFoundError
+
     @app.exception_handler(ResourceNotFoundError)
     async def not_found_handler(request: Request, exc: ResourceNotFoundError):
         return JSONResponse(status_code=404, content={"detail": str(exc)})
@@ -108,6 +118,7 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     app.state.config = config
 
     # Register routes
+    from src.api.routes.confluence import router as confluence_router
     from src.api.routes.data import router as data_router
     from src.api.routes.files import router as files_router
     from src.api.routes.health import router as health_router
@@ -125,6 +136,36 @@ def create_app(config: Optional[APIConfig] = None) -> FastAPI:
     app.include_router(llm_router)
     app.include_router(image_analysis_router)
     app.include_router(logs_router)
+    app.include_router(confluence_router)
+
+    # Add WebSocket endpoint
+    from fastapi import WebSocket, WebSocketDisconnect
+
+    from src.api.services.websocket import WebSocketManager
+
+    @app.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket):
+        """WebSocket endpoint for real-time updates.
+
+        This endpoint accepts WebSocket connections from portal clients
+        and enables real-time statistics updates via broadcasting.
+        """
+        manager: WebSocketManager = app.state.websocket_manager
+        client_id = await manager.connect(websocket)
+
+        try:
+            while True:
+                # Receive messages from client
+                data = await websocket.receive_json()
+                await manager.handle_client_message(client_id, data)
+
+        except WebSocketDisconnect:
+            await manager.disconnect(client_id)
+        except Exception as e:
+            import logging
+
+            logging.error(f"WebSocket error for client {client_id}: {e}")
+            await manager.disconnect(client_id)
 
     return app
 
@@ -146,4 +187,3 @@ def get_container(app: FastAPI) -> ServiceContainer:
     if not hasattr(app.state, "container"):
         raise RuntimeError("Service container not initialized")
     return app.state.container
-

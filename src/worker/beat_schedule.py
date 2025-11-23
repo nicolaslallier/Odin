@@ -59,4 +59,3 @@ def get_beat_schedule() -> dict[str, dict[str, Any]]:
             "options": {"expires": 3600},  # Expire after 1 hour
         },
     }
-

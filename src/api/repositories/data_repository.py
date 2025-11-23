@@ -6,14 +6,23 @@ the repository pattern to abstract database operations.
 
 from __future__ import annotations
 
-from typing import List, Optional
-
-from sqlalchemy import Table, Column, Integer, String, JSON, DateTime, MetaData, select, insert, update, delete
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    delete,
+    insert,
+    select,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.domain.entities import DataItem
 from src.api.exceptions import DatabaseError, ResourceNotFoundError
-
 
 # Define the data_items table
 metadata = MetaData()
@@ -61,13 +70,17 @@ class DataRepository:
             DatabaseError: If creation fails
         """
         try:
-            stmt = insert(data_items_table).values(
-                name=item.name,
-                description=item.description,
-                data=item.data,
-                created_at=item.created_at,
-                updated_at=item.updated_at,
-            ).returning(data_items_table.c.id)
+            stmt = (
+                insert(data_items_table)
+                .values(
+                    name=item.name,
+                    description=item.description,
+                    data=item.data,
+                    created_at=item.created_at,
+                    updated_at=item.updated_at,
+                )
+                .returning(data_items_table.c.id)
+            )
 
             result = await self.session.execute(stmt)
             item_id = result.scalar_one()
@@ -97,7 +110,7 @@ class DataRepository:
             row = result.first()
 
             if row is None:
-                raise ResourceNotFoundError(f"Data item not found", {"id": item_id})
+                raise ResourceNotFoundError("Data item not found", {"id": item_id})
 
             return DataItem(
                 id=row.id,
@@ -112,7 +125,7 @@ class DataRepository:
         except Exception as e:
             raise DatabaseError(f"Failed to retrieve data item: {e}")
 
-    async def get_all(self) -> List[DataItem]:
+    async def get_all(self) -> list[DataItem]:
         """Get all data items.
 
         Returns:
@@ -233,4 +246,3 @@ async def create_tables(engine) -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
-

@@ -218,9 +218,8 @@ class TestAPIConfig:
                 "OLLAMA_BASE_URL": "http://ollama:11434",
             },
             clear=True,
-        ):
-            with pytest.raises(ValidationError):
-                APIConfig()
+        ), pytest.raises(ValidationError):
+            APIConfig()
 
     def test_get_config_singleton(self) -> None:
         """Test that get_config returns a configuration instance."""
@@ -244,4 +243,3 @@ class TestAPIConfig:
             assert isinstance(config, APIConfig)
             assert config.host == "0.0.0.0"
             assert config.port == 8001
-

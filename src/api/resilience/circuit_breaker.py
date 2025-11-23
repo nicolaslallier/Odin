@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 from src.api.logging_config import get_logger
 
@@ -72,7 +73,7 @@ class CircuitBreaker:
 
         self._state = CircuitState.CLOSED
         self._failure_count = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
         self._lock = asyncio.Lock()
 
     @property
@@ -102,7 +103,10 @@ class CircuitBreaker:
         async with self._lock:
             # Check if we should transition from OPEN to HALF_OPEN
             if self._state == CircuitState.OPEN:
-                if self._last_failure_time and (time.time() - self._last_failure_time) > self.timeout:
+                if (
+                    self._last_failure_time
+                    and (time.time() - self._last_failure_time) > self.timeout
+                ):
                     logger.info("Circuit breaker entering HALF_OPEN state")
                     self._state = CircuitState.HALF_OPEN
                 else:
@@ -143,9 +147,7 @@ class CircuitBreaker:
                 logger.warning("Circuit breaker opening after failed test")
                 self._state = CircuitState.OPEN
             elif self._failure_count >= self.failure_threshold:
-                logger.warning(
-                    f"Circuit breaker opening after {self._failure_count} failures"
-                )
+                logger.warning(f"Circuit breaker opening after {self._failure_count} failures")
                 self._state = CircuitState.OPEN
 
     async def reset(self) -> None:
@@ -211,7 +213,7 @@ class CircuitBreakerManager:
 
 
 # Global circuit breaker manager (singleton)
-_manager_instance: Optional[CircuitBreakerManager] = None
+_manager_instance: CircuitBreakerManager | None = None
 
 
 def get_circuit_breaker_manager() -> CircuitBreakerManager:
@@ -224,4 +226,3 @@ def get_circuit_breaker_manager() -> CircuitBreakerManager:
     if _manager_instance is None:
         _manager_instance = CircuitBreakerManager()
     return _manager_instance
-

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Optional
+from typing import Any
 
 from src.api.logging_config import get_logger
 
@@ -23,7 +23,7 @@ class CacheEntry:
         expires_at: Timestamp when entry expires (None for no expiration)
     """
 
-    def __init__(self, value: Any, ttl: Optional[float] = None) -> None:
+    def __init__(self, value: Any, ttl: float | None = None) -> None:
         """Initialize cache entry.
 
         Args:
@@ -64,7 +64,7 @@ class CacheService:
         self._cache: dict[str, CacheEntry] = {}
         self._lock = asyncio.Lock()
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Get value from cache.
 
         Args:
@@ -87,7 +87,7 @@ class CacheService:
             logger.debug(f"Cache hit: {key}")
             return entry.value
 
-    async def set(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
+    async def set(self, key: str, value: Any, ttl: float | None = None) -> None:
         """Set value in cache.
 
         Args:
@@ -141,7 +141,7 @@ class CacheService:
 
 
 # Global cache instance (singleton)
-_cache_instance: Optional[CacheService] = None
+_cache_instance: CacheService | None = None
 
 
 def get_cache() -> CacheService:
@@ -154,4 +154,3 @@ def get_cache() -> CacheService:
     if _cache_instance is None:
         _cache_instance = CacheService()
     return _cache_instance
-

@@ -112,4 +112,3 @@ class TestHomeRouteHandlers:
 
         assert "status" in data
         assert data["status"] == "healthy"
-

@@ -15,7 +15,7 @@ from minio import Minio
 
 from src.worker.celery_app import celery_app
 from src.worker.config import get_config
-from src.worker.exceptions import BatchProcessingError, ExternalServiceError
+from src.worker.exceptions import BatchProcessingError
 from src.worker.tasks.scheduled import session_scope
 
 # Configure logging
@@ -142,9 +142,7 @@ def process_bulk_data(
 
 
 @celery_app.task(name="src.worker.tasks.batch.process_file_batch")
-def process_file_batch(
-    file_paths: list[str], upload_to_storage: bool = False
-) -> dict[str, Any]:
+def process_file_batch(file_paths: list[str], upload_to_storage: bool = False) -> dict[str, Any]:
     """Process a batch of files.
 
     This task processes multiple files, optionally uploading them to object
@@ -297,8 +295,7 @@ def send_bulk_notifications(
             )
 
     logger.info(
-        f"Notification sending complete: {sent} sent, {failed} failed, "
-        f"{batch_count} batches"
+        f"Notification sending complete: {sent} sent, {failed} failed, " f"{batch_count} batches"
     )
 
     return {
@@ -308,4 +305,3 @@ def send_bulk_notifications(
         "total": len(notifications),
         "rate_limited": rate_limit < len(notifications),
     }
-

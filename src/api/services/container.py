@@ -6,8 +6,8 @@ services, following the Dependency Inversion Principle (DIP) from SOLID.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 from src.api.config import APIConfig
 from src.api.services.database import DatabaseService
@@ -42,12 +42,12 @@ class ServiceContainer:
             config: API configuration containing connection details
         """
         self.config = config
-        self._database: Optional[DatabaseService] = None
-        self._storage: Optional[StorageService] = None
-        self._queue: Optional[QueueService] = None
-        self._vault: Optional[VaultService] = None
-        self._ollama: Optional[OllamaService] = None
-        self._image_analysis: Optional[ImageAnalysisService] = None
+        self._database: DatabaseService | None = None
+        self._storage: StorageService | None = None
+        self._queue: QueueService | None = None
+        self._vault: VaultService | None = None
+        self._ollama: OllamaService | None = None
+        self._image_analysis: ImageAnalysisService | None = None
 
     async def initialize(self) -> None:
         """Initialize all services.
@@ -210,4 +210,3 @@ async def get_service_container(config: APIConfig) -> AsyncGenerator[ServiceCont
         yield container
     finally:
         await container.shutdown()
-

@@ -32,14 +32,14 @@ def create_celery_app() -> Celery:
     config = get_config()
 
     # Configure logging with database support
+
     from src.worker.logging_config import configure_worker_logging
-    import os
 
     # Extract PostgreSQL DSN from result_backend (convert from db+postgresql to postgresql+asyncpg)
     db_dsn = None
     if config.result_backend.startswith("db+postgresql://"):
         db_dsn = config.result_backend.replace("db+postgresql://", "postgresql+asyncpg://")
-    
+
     configure_worker_logging(
         level="INFO",
         use_json=True,
@@ -109,4 +109,3 @@ def get_celery_app() -> Celery:
 
 # Create the global celery app instance for use in CLI commands
 celery_app = get_celery_app()
-

@@ -7,7 +7,7 @@ managing application logs in PostgreSQL.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
@@ -33,11 +33,11 @@ class LogRepository:
 
     async def get_logs(
         self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        level: Optional[str] = None,
-        service: Optional[str] = None,
-        search: Optional[str] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        level: str | None = None,
+        service: str | None = None,
+        search: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
@@ -89,8 +89,9 @@ class LogRepository:
             where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
 
             # Build query
-            query = text(f"""
-                SELECT 
+            query = text(
+                f"""
+                SELECT
                     id,
                     timestamp,
                     level,
@@ -110,7 +111,8 @@ class LogRepository:
                 WHERE {where_clause}
                 ORDER BY timestamp DESC
                 LIMIT :limit OFFSET :offset
-            """)
+            """
+            )
 
             params["limit"] = limit
             params["offset"] = offset
@@ -162,8 +164,9 @@ class LogRepository:
             DatabaseError: If query fails
         """
         try:
-            query = text("""
-                SELECT 
+            query = text(
+                """
+                SELECT
                     id,
                     timestamp,
                     level,
@@ -184,7 +187,8 @@ class LogRepository:
                 WHERE to_tsvector('english', message) @@ plainto_tsquery('english', :search)
                 ORDER BY rank DESC, timestamp DESC
                 LIMIT :limit OFFSET :offset
-            """)
+            """
+            )
 
             result = await self.session.execute(
                 query, {"search": search_term, "limit": limit, "offset": offset}
@@ -218,8 +222,8 @@ class LogRepository:
 
     async def get_log_statistics(
         self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
     ) -> dict[str, Any]:
         """Get aggregated log statistics.
 
@@ -240,9 +244,11 @@ class LogRepository:
 
         try:
             # Get statistics by service and level
-            query = text("""
+            query = text(
+                """
                 SELECT * FROM get_log_statistics(:start_time, :end_time)
-            """)
+            """
+            )
 
             result = await self.session.execute(
                 query, {"start_time": start_time, "end_time": end_time}
@@ -265,8 +271,9 @@ class LogRepository:
                 }
 
             # Get total counts
-            total_query = text("""
-                SELECT 
+            total_query = text(
+                """
+                SELECT
                     COUNT(*) as total,
                     COUNT(CASE WHEN level = 'DEBUG' THEN 1 END) as debug,
                     COUNT(CASE WHEN level = 'INFO' THEN 1 END) as info,
@@ -275,7 +282,8 @@ class LogRepository:
                     COUNT(CASE WHEN level = 'CRITICAL' THEN 1 END) as critical
                 FROM application_logs
                 WHERE timestamp BETWEEN :start_time AND :end_time
-            """)
+            """
+            )
 
             result = await self.session.execute(
                 total_query, {"start_time": start_time, "end_time": end_time}
@@ -314,9 +322,11 @@ class LogRepository:
             DatabaseError: If cleanup fails
         """
         try:
-            query = text("""
+            query = text(
+                """
                 SELECT * FROM cleanup_old_logs(:retention_days)
-            """)
+            """
+            )
 
             result = await self.session.execute(query, {"retention_days": retention_days})
             row = result.fetchone()
@@ -330,8 +340,8 @@ class LogRepository:
 
     async def get_related_logs(
         self,
-        request_id: Optional[UUID] = None,
-        task_id: Optional[UUID] = None,
+        request_id: UUID | None = None,
+        task_id: UUID | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """Find logs related by request_id or task_id.
@@ -364,8 +374,9 @@ class LogRepository:
 
             where_clause = " OR ".join(where_clauses)
 
-            query = text(f"""
-                SELECT 
+            query = text(
+                f"""
+                SELECT
                     id,
                     timestamp,
                     level,
@@ -385,7 +396,8 @@ class LogRepository:
                 WHERE {where_clause}
                 ORDER BY timestamp ASC
                 LIMIT :limit
-            """)
+            """
+            )
 
             params["limit"] = limit
 
@@ -416,7 +428,7 @@ class LogRepository:
         except Exception as e:
             raise DatabaseError(f"Failed to get related logs: {e}")
 
-    async def get_log_by_id(self, log_id: int) -> Optional[dict[str, Any]]:
+    async def get_log_by_id(self, log_id: int) -> dict[str, Any] | None:
         """Get a single log entry by ID.
 
         Args:
@@ -429,8 +441,9 @@ class LogRepository:
             DatabaseError: If query fails
         """
         try:
-            query = text("""
-                SELECT 
+            query = text(
+                """
+                SELECT
                     id,
                     timestamp,
                     level,
@@ -448,7 +461,8 @@ class LogRepository:
                     created_at
                 FROM application_logs
                 WHERE id = :log_id
-            """)
+            """
+            )
 
             result = await self.session.execute(query, {"log_id": log_id})
             row = result.fetchone()
@@ -476,4 +490,3 @@ class LogRepository:
 
         except Exception as e:
             raise DatabaseError(f"Failed to get log by ID: {e}")
-

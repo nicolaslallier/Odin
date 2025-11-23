@@ -11,7 +11,13 @@ import os
 from typing import Any
 
 # Import the structured logging from API (DRY principle)
-from src.api.logging_config import StructuredFormatter, LoggerAdapter, get_logger as api_get_logger, configure_logging_with_db
+from src.api.logging_config import (
+    LoggerAdapter,
+    configure_logging_with_db,
+)
+from src.api.logging_config import (
+    get_logger as api_get_logger,
+)
 
 
 def configure_worker_logging(
@@ -42,7 +48,9 @@ def configure_worker_logging(
     celery_logger.setLevel(getattr(logging, level.upper(), logging.INFO))
 
 
-def get_task_logger(name: str, task_id: str | None = None, **context: Any) -> logging.Logger | LoggerAdapter:
+def get_task_logger(
+    name: str, task_id: str | None = None, **context: Any
+) -> logging.Logger | LoggerAdapter:
     """Get a logger for Celery tasks with task context.
 
     Args:
@@ -60,4 +68,3 @@ def get_task_logger(name: str, task_id: str | None = None, **context: Any) -> lo
     if task_id:
         context["task_id"] = task_id
     return api_get_logger(name, **context)
-

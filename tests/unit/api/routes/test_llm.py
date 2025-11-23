@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
@@ -35,16 +35,17 @@ class TestLLMRoutes:
     def app(self, mock_config: APIConfig) -> FastAPI:
         """Create a test FastAPI app."""
         from unittest.mock import MagicMock
+
         from src.api.services.container import ServiceContainer
-        
+
         app = FastAPI()
         app.state.config = mock_config
-        
+
         # Create a mock container
         mock_container = MagicMock(spec=ServiceContainer)
         mock_container.ollama = AsyncMock()
         app.state.container = mock_container
-        
+
         app.include_router(router)
         return app
 
@@ -56,15 +57,15 @@ class TestLLMRoutes:
     def test_list_models_success(self, client: TestClient, app: FastAPI) -> None:
         """Test model listing endpoint."""
         from src.api.routes.llm import get_ollama_service
-        
+
         mock_ollama = AsyncMock()
         mock_ollama.list_models = AsyncMock(return_value=[{"name": "llama2"}])
-        
+
         app.dependency_overrides[get_ollama_service] = lambda: mock_ollama
-        
+
         try:
             response = client.get("/llm/models")
-            
+
             assert response.status_code == 200
         finally:
             app.dependency_overrides.clear()
@@ -72,18 +73,18 @@ class TestLLMRoutes:
     def test_generate_text_success(self, client: TestClient, app: FastAPI) -> None:
         """Test text generation endpoint."""
         from src.api.routes.llm import get_ollama_service
-        
+
         mock_ollama = AsyncMock()
         mock_ollama.generate_text = AsyncMock(return_value="Generated text")
-        
+
         app.dependency_overrides[get_ollama_service] = lambda: mock_ollama
-        
+
         try:
             response = client.post(
                 "/llm/generate",
                 json={"model": "llama2", "prompt": "Hello"},
             )
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["response"] == "Generated text"
@@ -92,17 +93,17 @@ class TestLLMRoutes:
 
     def test_list_models_error(self, client: TestClient, app: FastAPI) -> None:
         """Test model listing with error."""
-        from src.api.routes.llm import get_ollama_service
         from src.api.exceptions import LLMError
-        
+        from src.api.routes.llm import get_ollama_service
+
         mock_ollama = AsyncMock()
         mock_ollama.list_models = AsyncMock(side_effect=LLMError("Connection error"))
-        
+
         app.dependency_overrides[get_ollama_service] = lambda: mock_ollama
-        
+
         try:
             response = client.get("/llm/models")
-            
+
             assert response.status_code == 500
             assert "Connection error" in response.json()["detail"]
         finally:
@@ -110,22 +111,21 @@ class TestLLMRoutes:
 
     def test_generate_text_error(self, client: TestClient, app: FastAPI) -> None:
         """Test text generation with error."""
-        from src.api.routes.llm import get_ollama_service
         from src.api.exceptions import LLMError
-        
+        from src.api.routes.llm import get_ollama_service
+
         mock_ollama = AsyncMock()
         mock_ollama.generate_text = AsyncMock(side_effect=LLMError("Generation error"))
-        
+
         app.dependency_overrides[get_ollama_service] = lambda: mock_ollama
-        
+
         try:
             response = client.post(
                 "/llm/generate",
                 json={"model": "llama2", "prompt": "Hello"},
             )
-            
+
             assert response.status_code == 500
             assert "Generation error" in response.json()["detail"]
         finally:
             app.dependency_overrides.clear()
-

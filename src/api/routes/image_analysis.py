@@ -5,8 +5,6 @@ This module provides endpoints for image upload, analysis, and management.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from src.api.exceptions import LLMError, ResourceNotFoundError, StorageError, ValidationError
@@ -50,8 +48,8 @@ def get_image_analysis_service(
 @router.post("", response_model=ImageAnalysisResponse)
 async def analyze_image(
     file: UploadFile = File(...),
-    prompt: Optional[str] = Form(None),
-    model: Optional[str] = Form(None),
+    prompt: str | None = Form(None),
+    model: str | None = Form(None),
     service: ImageAnalysisService = Depends(get_image_analysis_service),
 ) -> ImageAnalysisResponse:
     """Upload and analyze an image using a vision-capable LLM model.
@@ -71,10 +69,10 @@ async def analyze_image(
     try:
         # Read file content
         file_content = await file.read()
-        
+
         # Get content type (with fallback)
         content_type = file.content_type or "application/octet-stream"
-        
+
         # Analyze and store
         analysis = await service.analyze_and_store(
             filename=file.filename or "unknown",
@@ -83,7 +81,7 @@ async def analyze_image(
             prompt=prompt,
             model=model,
         )
-        
+
         # Convert to response model
         return ImageAnalysisResponse(
             id=analysis.id,
@@ -126,7 +124,7 @@ async def get_analysis(
     """
     try:
         analysis = await service.get_analysis(image_id)
-        
+
         return ImageAnalysisResponse(
             id=analysis.id,
             filename=analysis.filename,
@@ -164,7 +162,7 @@ async def list_analyses(
     """
     try:
         analyses = await service.list_analyses()
-        
+
         # Convert to response models
         response_analyses = [
             ImageAnalysisResponse(
@@ -183,7 +181,7 @@ async def list_analyses(
             )
             for analysis in analyses
         ]
-        
+
         return ImageAnalysisListResponse(
             analyses=response_analyses,
             total=len(response_analyses),
@@ -216,4 +214,3 @@ async def delete_analysis(
         raise HTTPException(status_code=404, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-

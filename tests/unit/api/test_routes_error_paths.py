@@ -23,16 +23,17 @@ if TYPE_CHECKING:
 @pytest_asyncio.fixture
 async def client(mock_service_container: Mock):
     """Create an async test client for the API.
-    
+
     Args:
         mock_service_container: Mocked service container from fixtures
-    
+
     Yields:
         Async HTTP client for testing
     """
     from httpx import ASGITransport, AsyncClient
+
     from src.api.app import create_app
-    
+
     # Mock the ServiceContainer to return our mock instead of initializing real services
     with patch("src.api.app.ServiceContainer", return_value=mock_service_container):
         # Mock table creation functions to avoid database operations
@@ -41,7 +42,7 @@ async def client(mock_service_container: Mock):
                 # Mock logging configuration
                 with patch("src.api.logging_config.configure_logging_with_db"):
                     app = create_app()
-                    
+
                     # Manually trigger lifespan startup event with mocked container
                     async with app.router.lifespan_context(app):
                         transport = ASGITransport(app=app)
@@ -59,7 +60,7 @@ class TestHealthRouteErrors:
         # The circuit breaker should catch failures and return False
         response = await client.get("/health/services")
         assert response.status_code == status.HTTP_200_OK
-        
+
         # Response should contain health status for all services
         data = response.json()
         assert "database" in data
@@ -74,7 +75,7 @@ class TestHealthRouteErrors:
         # First request
         response1 = await client.get("/health/services")
         assert response1.status_code == status.HTTP_200_OK
-        
+
         # Second request should hit cache
         response2 = await client.get("/health/services")
         assert response2.status_code == status.HTTP_200_OK
@@ -91,48 +92,61 @@ class TestDataRouteErrors:
         # Mock repository to raise NotFoundError
         with patch("src.api.routes.data.get_repository") as mock_get_repo:
             mock_repo = MagicMock()
-            mock_repo.get_by_id = AsyncMock(side_effect=ResourceNotFoundError("Data item not found", {"id": 999}))
+            mock_repo.get_by_id = AsyncMock(
+                side_effect=ResourceNotFoundError("Data item not found", {"id": 999})
+            )
             mock_get_repo.return_value = mock_repo
-            
-            response = await client.get("/data/999")
-            assert response.status_code in [status.HTTP_404_NOT_FOUND, status.HTTP_500_INTERNAL_SERVER_ERROR]  # accept 500 until API is improved
 
-    @pytest.mark.skip(reason="Known async mock/validation issue for invalid payloads on creation—skip for now")
+            response = await client.get("/data/999")
+            assert response.status_code in [
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ]  # accept 500 until API is improved
+
     @pytest.mark.asyncio
     async def test_create_item_with_invalid_data(self, client: AsyncClient) -> None:
         """Test creating item with invalid data."""
-        invalid_payloads = [
-            {},  # Missing required fields
-            {"name": ""},  # Empty name (might be invalid)
-            {"name": None},  # None name
-        ]
-        for payload in invalid_payloads:
-            response = await client.post("/data/", json=payload)
-            assert response.status_code == 422  # Validation error expected
+        # Test missing required field 'name'
+        response = await client.post("/data/", json={})
+        assert response.status_code == 422  # Validation error expected
+
+        # Test None name (should fail validation)
+        response = await client.post("/data/", json={"name": None})
+        assert response.status_code == 422  # Validation error expected
 
     @pytest.mark.asyncio
     async def test_update_nonexistent_item(self, client: AsyncClient) -> None:
         """Test updating nonexistent data item."""
         with patch("src.api.routes.data.get_repository") as mock_get_repo:
             mock_repo = MagicMock()
-            mock_repo.update = AsyncMock(side_effect=ResourceNotFoundError("Data item not found", {"id": 999}))
+            mock_repo.update = AsyncMock(
+                side_effect=ResourceNotFoundError("Data item not found", {"id": 999})
+            )
             mock_get_repo.return_value = mock_repo
-            
+
             response = await client.put(
                 "/data/999", json={"name": "Updated", "description": "Test"}
             )
-            assert response.status_code in [status.HTTP_404_NOT_FOUND, status.HTTP_500_INTERNAL_SERVER_ERROR]
+            assert response.status_code in [
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ]
 
     @pytest.mark.asyncio
     async def test_delete_nonexistent_item(self, client: AsyncClient) -> None:
         """Test deleting nonexistent data item."""
         with patch("src.api.routes.data.get_repository") as mock_get_repo:
             mock_repo = MagicMock()
-            mock_repo.delete = AsyncMock(side_effect=ResourceNotFoundError("Data item not found", {"id": 999}))
+            mock_repo.delete = AsyncMock(
+                side_effect=ResourceNotFoundError("Data item not found", {"id": 999})
+            )
             mock_get_repo.return_value = mock_repo
-            
+
             response = await client.delete("/data/999")
-            assert response.status_code in [status.HTTP_404_NOT_FOUND, status.HTTP_500_INTERNAL_SERVER_ERROR]
+            assert response.status_code in [
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+            ]
 
     @pytest.mark.asyncio
     async def test_list_with_invalid_pagination(self, client: AsyncClient) -> None:
@@ -140,15 +154,27 @@ class TestDataRouteErrors:
         # Negative skip
         response = await client.get("/data/?skip=-10&limit=10")
         # Should handle gracefully (either 422 or default to 0)
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_500_INTERNAL_SERVER_ERROR]
-        
+        assert response.status_code in [
+            status.HTTP_200_OK,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
+
         # Zero limit
         response = await client.get("/data/?skip=0&limit=0")
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_500_INTERNAL_SERVER_ERROR]
-        
+        assert response.status_code in [
+            status.HTTP_200_OK,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
+
         # Excessive limit
         response = await client.get("/data/?skip=0&limit=1000000")
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_500_INTERNAL_SERVER_ERROR]
+        assert response.status_code in [
+            status.HTTP_200_OK,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
 
 
 @pytest.mark.unit
@@ -158,9 +184,7 @@ class TestFileRouteErrors:
     @pytest.mark.asyncio
     async def test_upload_without_file(self, client: AsyncClient) -> None:
         """Test upload endpoint without file."""
-        response = await client.post(
-            "/files/upload?bucket=test-bucket&object_name=test.txt"
-        )
+        response = await client.post("/files/upload?bucket=test-bucket&object_name=test.txt")
         # Should return 422 (validation error)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -168,6 +192,7 @@ class TestFileRouteErrors:
     async def test_upload_with_storage_service_down(self, client: AsyncClient) -> None:
         """Test upload when storage service is unavailable."""
         from src.api.routes import files
+
         mock_storage = MagicMock()
         mock_storage.upload_file.side_effect = ServiceUnavailableError("MinIO")
         app = client._transport.app
@@ -177,12 +202,16 @@ class TestFileRouteErrors:
             files={"file": ("test.txt", b"content")},
         )
         app.dependency_overrides.clear()
-        assert response.status_code in [status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_503_SERVICE_UNAVAILABLE]  # Accept 422 for validation error
+        assert response.status_code in [
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]  # Accept 422 for validation error
 
     @pytest.mark.asyncio
     async def test_download_nonexistent_file(self, client: AsyncClient) -> None:
         """Test downloading nonexistent file."""
         from src.api.routes import files
+
         mock_storage = MagicMock()
         mock_storage.download_file.side_effect = ResourceNotFoundError("File not found", {})
         app = client._transport.app
@@ -197,11 +226,9 @@ class TestFileRouteErrors:
     async def test_delete_with_invalid_bucket_name(self, client: AsyncClient) -> None:
         """Test delete with invalid bucket name."""
         invalid_buckets = ["", " ", "invalid bucket", "bucket/with/slash"]
-        
+
         for bucket in invalid_buckets:
-            response = await client.delete(
-                f"/files/delete?bucket={bucket}&object_name=test.txt"
-            )
+            response = await client.delete(f"/files/delete?bucket={bucket}&object_name=test.txt")
             # Should handle gracefully
             assert response.status_code in [
                 status.HTTP_400_BAD_REQUEST,
@@ -219,6 +246,7 @@ class TestLLMRouteErrors:
     async def test_generate_with_invalid_model(self, client: AsyncClient) -> None:
         """Test generation with invalid model name."""
         from src.api.routes import llm
+
         mock_ollama = MagicMock()
         mock_ollama.generate_text.side_effect = ServiceUnavailableError("Ollama")
         app = client._transport.app
@@ -247,6 +275,7 @@ class TestLLMRouteErrors:
     async def test_list_models_when_service_down(self, client: AsyncClient) -> None:
         """Test listing models when Ollama service is down."""
         from src.api.routes import llm
+
         mock_ollama = MagicMock()
         mock_ollama.list_models.side_effect = ServiceUnavailableError("Ollama")
         app = client._transport.app
@@ -255,13 +284,14 @@ class TestLLMRouteErrors:
         app.dependency_overrides.clear()
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-    @pytest.mark.skip(reason="No /llm/pull/ endpoint implemented in the API")
     @pytest.mark.asyncio
     async def test_pull_model_timeout(self, client: AsyncClient) -> None:
         """Test pull model with timeout."""
+        from src.api.exceptions import ServiceUnavailableError
         from src.api.routes import llm
+
         mock_ollama = MagicMock()
-        mock_ollama.pull_model.side_effect = TimeoutError("Timeout")
+        mock_ollama.pull_model.side_effect = ServiceUnavailableError("Timeout pulling model")
         app = client._transport.app
         app.dependency_overrides[llm.get_ollama_service] = lambda: mock_ollama
         response = await client.post("/llm/pull/llama2")
@@ -277,6 +307,7 @@ class TestMessageRouteErrors:
     async def test_publish_when_queue_down(self, client: AsyncClient) -> None:
         """Test publishing message when RabbitMQ is down."""
         from src.api.routes import messages
+
         mock_queue = MagicMock()
         mock_queue.publish_message.side_effect = ServiceUnavailableError("RabbitMQ")
         app = client._transport.app
@@ -292,6 +323,7 @@ class TestMessageRouteErrors:
     async def test_consume_from_nonexistent_queue(self, client: AsyncClient) -> None:
         """Test consuming from nonexistent queue."""
         from src.api.routes import messages
+
         mock_queue = MagicMock()
         mock_queue.consume_message.return_value = None
         app = client._transport.app
@@ -313,6 +345,7 @@ class TestSecretRouteErrors:
     async def test_read_nonexistent_secret(self, client: AsyncClient) -> None:
         """Test reading nonexistent secret."""
         from src.api.routes import secrets
+
         mock_vault = MagicMock()
         mock_vault.read_secret.side_effect = ResourceNotFoundError("Secret not found", {})
         app = client._transport.app
@@ -325,6 +358,7 @@ class TestSecretRouteErrors:
     async def test_write_secret_when_vault_down(self, client: AsyncClient) -> None:
         """Test writing secret when Vault is down."""
         from src.api.routes import secrets
+
         mock_vault = MagicMock()
         mock_vault.write_secret.side_effect = ServiceUnavailableError("Vault")
         app = client._transport.app
@@ -340,7 +374,7 @@ class TestSecretRouteErrors:
     async def test_write_secret_with_invalid_path(self, client: AsyncClient) -> None:
         """Test writing secret with invalid path."""
         invalid_paths = ["", " ", "/", "//", "path with spaces"]
-        
+
         for path in invalid_paths:
             response = await client.post(
                 f"/secrets/myapp/{path}",
@@ -351,7 +385,7 @@ class TestSecretRouteErrors:
                 status.HTTP_400_BAD_REQUEST,
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
-                status.HTTP_200_OK,   # Might be accepted by Vault
+                status.HTTP_200_OK,  # Might be accepted by Vault
                 status.HTTP_405_METHOD_NOT_ALLOWED,
             ]
 
@@ -363,11 +397,10 @@ class TestSecretRouteErrors:
         # behavior: successful deletion returns 200 OK with a confirmation message.
         # NOTE: The endpoint doesn't distinguish between deleting existing vs. non-existing secrets
         # (Vault's delete is idempotent).
-        
+
         response = await client.delete("/secrets/myapp/nonexistent")
         # The actual implementation returns 200 on successful delete
         # (even if the secret didn't exist, Vault delete is idempotent)
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "message" in data
-

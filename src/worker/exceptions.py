@@ -5,7 +5,7 @@ This module defines domain-specific exceptions for Celery worker tasks.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 
 class WorkerError(Exception):
@@ -14,7 +14,7 @@ class WorkerError(Exception):
     This is the base class for all custom exceptions in the worker service.
     """
 
-    def __init__(self, message: str, details: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         """Initialize the exception.
 
         Args:
@@ -60,4 +60,3 @@ class ExternalServiceError(WorkerError):
     """
 
     pass
-

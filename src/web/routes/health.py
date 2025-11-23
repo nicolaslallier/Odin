@@ -6,13 +6,13 @@ about all Odin services and infrastructure components.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 
 router = APIRouter(prefix="", tags=["health"])
 
@@ -100,7 +100,9 @@ async def check_application_services() -> dict[str, bool]:
             # Flower requires basic auth (admin:admin)
             auth = httpx.BasicAuth("admin", "admin")
             # Check if Flower root page is accessible (dashboard redirects, use root)
-            response = await client.get("http://odin-flower:5555/", auth=auth, follow_redirects=True)
+            response = await client.get(
+                "http://odin-flower:5555/", auth=auth, follow_redirects=True
+            )
             services["flower"] = response.status_code == 200
     except Exception:
         services["flower"] = False
@@ -153,7 +155,6 @@ async def health_page(request: Request) -> HTMLResponse:
     application = await check_application_services()
 
     context = {
-        "request": request,
         "title": "Health Monitor",
         "version": "1.1.0",
         "infrastructure": infrastructure,
@@ -161,7 +162,7 @@ async def health_page(request: Request) -> HTMLResponse:
         "circuit_breakers": circuit_breakers,
     }
 
-    return templates.TemplateResponse("health.html", context)
+    return templates.TemplateResponse(request, "health.html", context)
 
 
 @router.get("/health/api")
@@ -191,4 +192,3 @@ async def health_api(request: Request) -> dict[str, Any]:
         "circuit_breakers": circuit_breakers,
         "timestamp": None,  # Will be added by frontend
     }
-

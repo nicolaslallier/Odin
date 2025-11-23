@@ -7,9 +7,7 @@ for file management in the API service.
 from __future__ import annotations
 
 import asyncio
-from functools import partial
-from io import BytesIO
-from typing import BinaryIO, Optional
+from typing import BinaryIO
 
 from minio import Minio
 from minio.error import S3Error
@@ -29,7 +27,9 @@ class StorageService:
         secure: Whether to use HTTPS
     """
 
-    def __init__(self, endpoint: str, access_key: str, secret_key: str, secure: bool = False) -> None:
+    def __init__(
+        self, endpoint: str, access_key: str, secret_key: str, secure: bool = False
+    ) -> None:
         """Initialize storage service with MinIO credentials.
 
         Args:
@@ -42,7 +42,7 @@ class StorageService:
         self.access_key = access_key
         self.secret_key = secret_key
         self.secure = secure
-        self._client: Optional[Minio] = None
+        self._client: Minio | None = None
 
     def get_client(self) -> Minio:
         """Get or create the MinIO client.
@@ -207,4 +207,3 @@ class StorageService:
             return True
         except Exception:
             return False
-

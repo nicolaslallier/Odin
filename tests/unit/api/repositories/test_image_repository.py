@@ -7,15 +7,14 @@ coverage of CRUD operations and error handling.
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.domain.entities import ImageAnalysis
 from src.api.exceptions import DatabaseError, ResourceNotFoundError
-from src.api.repositories.image_repository import ImageRepository, image_analysis_table
+from src.api.repositories.image_repository import ImageRepository
 
 
 @pytest.fixture
@@ -238,9 +237,7 @@ class TestImageRepositoryUpdate:
 
         # Mock get_by_id call
         mock_existing = Mock()
-        mock_existing.first.return_value = Mock(
-            id=1, filename="test.jpg", bucket="images"
-        )
+        mock_existing.first.return_value = Mock(id=1, filename="test.jpg", bucket="images")
         mock_session.execute.return_value = mock_existing
 
         # Act
@@ -404,4 +401,3 @@ class TestImageRepositoryCount:
         # Act & Assert
         with pytest.raises(DatabaseError, match="Failed to count image analyses"):
             await repository.count()
-

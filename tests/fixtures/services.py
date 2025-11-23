@@ -5,7 +5,7 @@ This module provides pytest fixtures for mocking and testing services.
 
 from __future__ import annotations
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -29,15 +29,15 @@ async def test_db_engine() -> AsyncGenerator[AsyncEngine, None]:
         "sqlite+aiosqlite:///:memory:",
         echo=False,
     )
-    
+
     # Create tables
     from src.api.repositories.data_repository import metadata
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
-    
+
     yield engine
-    
+
     await engine.dispose()
 
 
@@ -52,9 +52,9 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
         Test database session
     """
     from sqlalchemy.ext.asyncio import async_sessionmaker
-    
+
     async_session = async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
-    
+
     async with async_session() as session:
         yield session
 
@@ -168,4 +168,3 @@ def mock_service_container(
     container.initialize = AsyncMock(return_value=None)
     container.shutdown = AsyncMock(return_value=None)
     return container
-

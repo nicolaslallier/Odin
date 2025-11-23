@@ -7,6 +7,7 @@ periodic task execution.
 from __future__ import annotations
 
 import os
+
 os.environ.setdefault("CELERY_BROKER_URL", "memory://")
 os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
 
@@ -132,9 +133,7 @@ class TestBeatScheduleConfiguration:
                 assert isinstance(task_config["options"], dict)
 
     @patch("src.worker.beat_schedule.timedelta")
-    def test_beat_schedule_intervals_are_configurable(
-        self, mock_timedelta
-    ) -> None:
+    def test_beat_schedule_intervals_are_configurable(self, mock_timedelta) -> None:
         """Test that beat schedule intervals can be configured."""
         # This test verifies that intervals are not hardcoded but configurable
         # Act
@@ -156,9 +155,7 @@ class TestBeatScheduleExecution:
         return app
 
     @patch("src.worker.tasks.scheduled.httpx")
-    def test_scheduled_health_check_executes(
-        self, mock_httpx, celery_app_eager
-    ) -> None:
+    def test_scheduled_health_check_executes(self, mock_httpx, celery_app_eager) -> None:
         """Test that scheduled health check task executes."""
         # Arrange
         from src.worker.tasks.scheduled import health_check_services
@@ -176,9 +173,7 @@ class TestBeatScheduleExecution:
         assert task_result["status"] == "success"
 
     @patch("src.worker.tasks.scheduled.session_scope")
-    def test_scheduled_cleanup_executes(
-        self, mock_session_scope, celery_app_eager
-    ) -> None:
+    def test_scheduled_cleanup_executes(self, mock_session_scope, celery_app_eager) -> None:
         """Test that scheduled cleanup task executes."""
         # Arrange
         from src.worker.tasks.scheduled import cleanup_old_task_results
@@ -213,4 +208,3 @@ class TestBeatScheduleExecution:
         assert result.successful()
         task_result = result.get()
         assert task_result["status"] == "success"
-

@@ -84,4 +84,3 @@ def get_config() -> WebConfig:
         api_base_url=os.environ.get("API_BASE_URL", "http://odin-api:8001"),
         postgres_dsn=os.environ.get("POSTGRES_DSN", ""),
     )
-

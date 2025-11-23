@@ -32,15 +32,16 @@ class TestQueueService:
             mock_connection = MagicMock()
             mock_connection.is_closed = False
             mock_conn.return_value = mock_connection
-            
+
             connection = queue_service._ensure_connection()
-            
+
             assert connection == mock_connection
             mock_conn.assert_called_once()
 
     def test_ensure_connection_amqp_error(self, queue_service: QueueService) -> None:
         with patch("src.api.services.queue.pika.BlockingConnection") as mock_conn:
             import pika
+
             mock_conn.side_effect = pika.exceptions.AMQPConnectionError("fail")
             with pytest.raises(Exception) as exc:
                 queue_service._ensure_connection()
@@ -52,9 +53,8 @@ class TestQueueService:
             mock_ensure.return_value = mock_conn
             # channel() will raise
             mock_conn.channel.side_effect = Exception("Broken")
-            with pytest.raises(Exception) as exc:
-                with queue_service._get_channel():
-                    pass
+            with pytest.raises(Exception) as exc, queue_service._get_channel():
+                pass
             assert "Channel operation failed" in str(exc.value)
 
     def test_channel_close_error(self, queue_service: QueueService) -> None:
@@ -76,12 +76,10 @@ class TestQueueService:
             mock_channel = MagicMock()
             mock_get_channel.return_value.__enter__.return_value = mock_channel
             mock_get_channel.return_value.__exit__.return_value = None
-            
+
             queue_service.declare_queue("test-queue")
-            
-            mock_channel.queue_declare.assert_called_once_with(
-                queue="test-queue", durable=True
-            )
+
+            mock_channel.queue_declare.assert_called_once_with(queue="test-queue", durable=True)
 
     def test_declare_queue_error(self, queue_service: QueueService) -> None:
         with patch.object(queue_service, "_get_channel") as mock_get_channel:
@@ -99,9 +97,9 @@ class TestQueueService:
             mock_channel = MagicMock()
             mock_get_channel.return_value.__enter__.return_value = mock_channel
             mock_get_channel.return_value.__exit__.return_value = None
-            
+
             queue_service.publish_message("test-queue", "test message")
-            
+
             mock_channel.basic_publish.assert_called_once()
             call_args = mock_channel.basic_publish.call_args
             assert call_args[1]["exchange"] == ""
@@ -129,9 +127,9 @@ class TestQueueService:
             mock_channel.basic_get.return_value = (mock_method, mock_properties, mock_body)
             mock_get_channel.return_value.__enter__.return_value = mock_channel
             mock_get_channel.return_value.__exit__.return_value = None
-            
+
             result = queue_service.consume_message("test-queue")
-            
+
             assert result == "test message"
             mock_channel.basic_get.assert_called_once_with(queue="test-queue", auto_ack=False)
             mock_channel.basic_ack.assert_called_once_with(delivery_tag=1)
@@ -153,9 +151,9 @@ class TestQueueService:
             mock_channel.basic_get.return_value = (None, None, None)
             mock_get_channel.return_value.__enter__.return_value = mock_channel
             mock_get_channel.return_value.__exit__.return_value = None
-            
+
             result = queue_service.consume_message("test-queue")
-            
+
             assert result is None
 
     def test_purge_queue_success(self, queue_service: QueueService) -> None:
@@ -164,9 +162,9 @@ class TestQueueService:
             mock_channel = MagicMock()
             mock_get_channel.return_value.__enter__.return_value = mock_channel
             mock_get_channel.return_value.__exit__.return_value = None
-            
+
             queue_service.purge_queue("test-queue")
-            
+
             mock_channel.queue_purge.assert_called_once_with(queue="test-queue")
 
     def test_purge_queue_error(self, queue_service: QueueService) -> None:
@@ -186,9 +184,9 @@ class TestQueueService:
             mock_connection = MagicMock()
             mock_connection.is_open = True
             mock_ensure_conn.return_value = mock_connection
-            
+
             result = await queue_service.health_check()
-            
+
             assert result is True
 
     @pytest.mark.asyncio
@@ -196,9 +194,9 @@ class TestQueueService:
         """Test health check returns False when RabbitMQ is not accessible."""
         with patch.object(queue_service, "_ensure_connection") as mock_ensure_conn:
             mock_ensure_conn.side_effect = Exception("Connection failed")
-            
+
             result = await queue_service.health_check()
-            
+
             assert result is False
 
     @pytest.mark.asyncio
@@ -211,4 +209,3 @@ class TestQueueService:
             await queue_service.close()
             # connection is set to None
             assert queue_service._connection is None
-

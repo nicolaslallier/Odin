@@ -7,14 +7,14 @@ including the main page and all API endpoints.
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.api.services.db_management import DatabaseStats, QueryResult, TableInfo, TableSchema
 from src.api.repositories.query_history_repository import QueryHistory
+from src.api.services.db_management import DatabaseStats, QueryResult, TableInfo, TableSchema
 
 
 @pytest.fixture
@@ -76,29 +76,40 @@ def app_with_mocks(
         FastAPI application with mocked dependencies
     """
     # Import here to avoid circular dependencies
-    from src.web.routes.database import router
-    from src.web.config import WebConfig
-    from fastapi.templating import Jinja2Templates
     from pathlib import Path
 
+    from fastapi.templating import Jinja2Templates
+
+    from src.web.config import WebConfig
+    from src.web.routes.database import router
+
     app = FastAPI()
-    
+
     # Set up app state
     app.state.config = WebConfig(
         host="127.0.0.1",
         port=8000,
         api_base_url="http://localhost:8001",
     )
-    
+
     # Set up templates
     templates_dir = Path(__file__).parent.parent.parent.parent / "src" / "web" / "templates"
     app.state.templates = Jinja2Templates(directory=str(templates_dir))
-    
+
+    # Mount static files
+    static_dir = Path(__file__).parent.parent.parent.parent / "src" / "web" / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        "/static",
+        __import__("fastapi.staticfiles").staticfiles.StaticFiles(directory=str(static_dir)),
+        name="static",
+    )
+
     # Store mocked services in app state
     app.state.db_service = mock_db_service
     app.state.db_management_service = mock_db_management_service
     app.state.query_history_repo = mock_query_history_repo
-    
+
     app.include_router(router)
     return app
 
@@ -184,7 +195,7 @@ class TestGetTablesAPI:
 
         # Assert
         assert response.status_code == 500
-        assert "error" in response.json()
+        assert "error" in response.json()["detail"]
 
 
 class TestGetTableSchemaAPI:
@@ -199,8 +210,20 @@ class TestGetTableSchemaAPI:
         schema = TableSchema(
             table_name="users",
             columns=[
-                {"name": "id", "type": "integer", "nullable": True, "constraint": "PRIMARY KEY", "default": None},
-                {"name": "username", "type": "varchar(100)", "nullable": False, "constraint": None, "default": None},
+                {
+                    "name": "id",
+                    "type": "integer",
+                    "nullable": True,
+                    "constraint": "PRIMARY KEY",
+                    "default": None,
+                },
+                {
+                    "name": "username",
+                    "type": "varchar(100)",
+                    "nullable": False,
+                    "constraint": None,
+                    "default": None,
+                },
             ],
         )
         mock_db_management_service.get_table_schema.return_value = schema
@@ -286,7 +309,7 @@ class TestExecuteQueryAPI:
 
         # Assert
         assert response.status_code == 400
-        assert "error" in response.json()
+        assert "error" in response.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_execute_query_with_confirmation(
@@ -403,7 +426,9 @@ class TestGetDatabaseStatsAPI:
         # Arrange
         from src.api.exceptions import DatabaseError
 
-        mock_db_management_service.get_database_stats.side_effect = DatabaseError("Connection failed")
+        mock_db_management_service.get_database_stats.side_effect = DatabaseError(
+            "Connection failed"
+        )
 
         # Act
         response = client.get("/database/stats")
@@ -428,7 +453,7 @@ class TestExportDataAPI:
 
         # Assert
         assert response.status_code == 200
-        assert response.headers["content-type"] == "text/csv; charset=utf-8"
+        assert "text/csv" in response.headers["content-type"]
         assert "id,name" in response.text
 
     @pytest.mark.asyncio
@@ -471,7 +496,6 @@ class TestGetQueryHistoryAPI:
         self, client: TestClient, app_with_mocks: FastAPI, mock_query_history_repo: MagicMock
     ) -> None:
         """Test successful retrieval of query history."""
-        # Arrange
         history = [
             QueryHistory(
                 id=1,
@@ -483,12 +507,8 @@ class TestGetQueryHistoryAPI:
                 error_message=None,
             ),
         ]
-        mock_query_history_repo.get_recent.return_value = history
-
-        # Act
+        mock_query_history_repo.get_recent = AsyncMock(return_value=history)
         response = client.get("/database/history?limit=10")
-
-        # Assert
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -499,7 +519,6 @@ class TestGetQueryHistoryAPI:
         self, client: TestClient, app_with_mocks: FastAPI, mock_query_history_repo: MagicMock
     ) -> None:
         """Test query history search."""
-        # Arrange
         history = [
             QueryHistory(
                 id=1,
@@ -511,14 +530,9 @@ class TestGetQueryHistoryAPI:
                 error_message=None,
             ),
         ]
-        mock_query_history_repo.search_queries.return_value = history
-
-        # Act
+        mock_query_history_repo.search_queries = AsyncMock(return_value=history)
         response = client.get("/database/history?limit=10&search=users")
-
-        # Assert
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
         assert "users" in data[0]["query_text"]
-

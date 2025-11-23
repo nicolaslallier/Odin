@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
@@ -188,8 +188,8 @@ async def get_table_data(
     table_name: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=1000),
-    search: Optional[str] = Query(None),
-    order_by: Optional[str] = Query(None),
+    search: str | None = Query(None),
+    order_by: str | None = Query(None),
 ) -> dict[str, Any]:
     """Get paginated data from a table.
 
@@ -358,7 +358,7 @@ async def export_data(
 async def get_query_history(
     request: Request,
     limit: int = Query(50, ge=1, le=100),
-    search: Optional[str] = Query(None),
+    search: str | None = Query(None),
 ) -> list[dict[str, Any]]:
     """Get query execution history.
 
@@ -374,27 +374,31 @@ async def get_query_history(
         HTTPException: If history retrieval fails
     """
     try:
-        db_service = get_db_service(request)
-        async with db_service.get_session() as session:
-            repo = QueryHistoryRepository(session)
-
+        repo = get_query_history_repo(request)
+        if repo is not None:
             if search:
                 history = await repo.search_queries(search_term=search, limit=limit)
             else:
                 history = await repo.get_recent(limit=limit)
-
-            return [
-                {
-                    "id": h.id,
-                    "query_text": h.query_text,
-                    "executed_at": h.executed_at.isoformat() if h.executed_at else None,
-                    "execution_time_ms": h.execution_time_ms,
-                    "status": h.status,
-                    "row_count": h.row_count,
-                    "error_message": h.error_message,
-                }
-                for h in history
-            ]
+        else:
+            db_service = get_db_service(request)
+            async with db_service.get_session() as session:
+                repo = QueryHistoryRepository(session)
+                if search:
+                    history = await repo.search_queries(search_term=search, limit=limit)
+                else:
+                    history = await repo.get_recent(limit=limit)
+        return [
+            {
+                "id": h.id,
+                "query_text": h.query_text,
+                "executed_at": h.executed_at.isoformat() if h.executed_at else None,
+                "execution_time_ms": h.execution_time_ms,
+                "status": h.status,
+                "row_count": h.row_count,
+                "error_message": h.error_message,
+            }
+            for h in history
+        ]
     except DatabaseError as e:
         raise HTTPException(status_code=500, detail={"error": str(e)})
-

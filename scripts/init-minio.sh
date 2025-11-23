@@ -4,46 +4,43 @@
 
 set -e
 
-MINIO_ENDPOINT="${MINIO_ENDPOINT:-localhost:9000}"
+MINIO_CONTAINER="odin-minio"
 MINIO_ROOT_USER="${MINIO_ROOT_USER:-minioadmin}"
 MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-minioadmin}"
-MINIO_ALIAS="odin-minio"
+MINIO_ALIAS="odin"
 
-echo "Initializing MinIO at ${MINIO_ENDPOINT}..."
+echo "Initializing MinIO..."
 
-# Check if MinIO is running
-if ! curl -s "http://${MINIO_ENDPOINT}/minio/health/live" > /dev/null 2>&1; then
-    echo "Error: MinIO is not accessible at ${MINIO_ENDPOINT}"
+# Check if MinIO container is running
+if ! docker ps | grep -q "${MINIO_CONTAINER}"; then
+    echo "Error: MinIO container is not running"
     echo "Make sure MinIO container is running: docker-compose up -d minio"
     exit 1
 fi
 
-# Install mc (MinIO Client) if not available
-if ! command -v mc &> /dev/null; then
-    echo "MinIO Client (mc) is not installed."
-    echo "Install it from: https://min.io/docs/minio/linux/reference/minio-mc.html"
-    echo "Or use the web console at: http://localhost/minio/"
-    exit 1
-fi
+echo "✓ MinIO container is running"
 
-# Configure MinIO alias
-mc alias set "${MINIO_ALIAS}" "http://${MINIO_ENDPOINT}" "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"
+# Configure MinIO alias using docker exec
+echo "Configuring MinIO alias..."
+docker exec "${MINIO_CONTAINER}" mc alias set "${MINIO_ALIAS}" "http://localhost:9000" "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" > /dev/null 2>&1 || true
 
 # Create default buckets
-BUCKETS=("odin-data" "odin-backups" "odin-temp")
+BUCKETS=("odin-data" "odin-backups" "odin-temp" "confluence-backups" "confluence-markdown")
 
 for bucket in "${BUCKETS[@]}"; do
-    if mc ls "${MINIO_ALIAS}/${bucket}" > /dev/null 2>&1; then
-        echo "Bucket '${bucket}' already exists, skipping..."
+    if docker exec "${MINIO_CONTAINER}" mc ls "${MINIO_ALIAS}/${bucket}" > /dev/null 2>&1; then
+        echo "  Bucket '${bucket}' already exists"
     else
-        echo "Creating bucket '${bucket}'..."
-        mc mb "${MINIO_ALIAS}/${bucket}"
-        echo "Bucket '${bucket}' created successfully."
+        echo "  Creating bucket '${bucket}'..."
+        docker exec "${MINIO_CONTAINER}" mc mb "${MINIO_ALIAS}/${bucket}"
+        echo "  ✓ Bucket '${bucket}' created"
     fi
 done
 
 echo ""
-echo "MinIO initialization complete!"
-echo "Access MinIO Console at: http://localhost/minio/"
-echo "Access MinIO API at: http://localhost/minio/api/"
+echo "✓ MinIO initialization complete!"
+echo "  Access MinIO Console at: http://localhost/minio/"
+echo "  Username: ${MINIO_ROOT_USER}"
+echo "  Password: ${MINIO_ROOT_PASSWORD}"
+echo ""
 

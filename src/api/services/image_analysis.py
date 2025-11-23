@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import time
 from io import BytesIO
-from typing import List, Optional
 
 from src.api.domain.entities import ImageAnalysis
 from src.api.exceptions import StorageError, ValidationError
@@ -111,8 +110,8 @@ class ImageAnalysisService:
         filename: str,
         file_data: bytes,
         content_type: str,
-        prompt: Optional[str] = None,
-        model: Optional[str] = None,
+        prompt: str | None = None,
+        model: str | None = None,
     ) -> ImageAnalysis:
         """Analyze an image and store it with metadata.
 
@@ -158,9 +157,7 @@ class ImageAnalysisService:
 
         # Upload to MinIO
         file_io = BytesIO(file_data)
-        self.storage.upload_file(
-            self.image_bucket, object_key, file_io, len(file_data)
-        )
+        self.storage.upload_file(self.image_bucket, object_key, file_io, len(file_data))
 
         try:
             # Analyze with LLM
@@ -188,7 +185,7 @@ class ImageAnalysisService:
 
             return result
 
-        except Exception as e:
+        except Exception:
             # Cleanup: delete uploaded image if analysis or DB storage fails
             try:
                 self.storage.delete_file(self.image_bucket, object_key)
@@ -214,7 +211,7 @@ class ImageAnalysisService:
             repository = ImageRepository(session)
             return await repository.get_by_id(image_id)
 
-    async def list_analyses(self) -> List[ImageAnalysis]:
+    async def list_analyses(self) -> list[ImageAnalysis]:
         """List all image analyses.
 
         Returns:
@@ -251,4 +248,3 @@ class ImageAnalysisService:
 
             # Delete from database
             await repository.delete(image_id)
-

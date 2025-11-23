@@ -18,6 +18,12 @@ services:
       - WEB_LOG_LEVEL=${WEB_LOG_LEVEL:-info}
       - API_BASE_URL=${API_BASE_URL:-http://odin-api:8001}
       - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - OLLAMA_BASE_URL=http://ollama:11434
       - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
       - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
       - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
@@ -31,6 +37,7 @@ services:
       - rabbitmq
       - vault
       - minio
+      - ollama
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 60s
@@ -142,16 +149,18 @@ services:
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
 
-  # PostgreSQL database
+  # PostgreSQL database with TimescaleDB
   postgresql:
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg18
     container_name: odin-postgresql
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-odin}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odin_dev_password}
       - POSTGRES_DB=${POSTGRES_DB:-odin_db}
+      - ENABLE_TIMESCALEDB=true
     volumes:
       - postgresql-data:/var/lib/postgresql/data
+      - ./scripts/init-timescaledb.sql:/docker-entrypoint-initdb.d/02-init-timescaledb.sql:ro
     networks:
       - odin-network
     restart: unless-stopped
@@ -276,6 +285,9 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_SECURE=false
+      - API_CALLBACK_URL=${API_CALLBACK_URL:-http://odin-api:8001}
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
       - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
       - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
       - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}

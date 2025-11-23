@@ -32,9 +32,7 @@ class TaskStatusResponse(BaseModel):
 
 
 @router.post("/process-data", response_model=TaskDispatchResponse)
-async def dispatch_data_processing(
-    data_items: list[dict[str, Any]]
-) -> TaskDispatchResponse:
+async def dispatch_data_processing(data_items: list[dict[str, Any]]) -> TaskDispatchResponse:
     """Dispatch a bulk data processing task.
 
     Args:
@@ -55,9 +53,7 @@ async def dispatch_data_processing(
 
 
 @router.post("/send-notification", response_model=TaskDispatchResponse)
-async def dispatch_notification(
-    notification_data: dict[str, Any]
-) -> TaskDispatchResponse:
+async def dispatch_notification(notification_data: dict[str, Any]) -> TaskDispatchResponse:
     """Dispatch a notification task.
 
     Args:
@@ -101,4 +97,3 @@ async def get_task_status(task_id: str) -> TaskStatusResponse:
         return TaskStatusResponse(**status)
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Task not found: {str(e)}")
-

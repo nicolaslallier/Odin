@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}Confluence Integration{% endblock %}
+
+{% block extra_head %}
+<style>
+  .tabs {
+    display: flex;
+    border-bottom: 2px solid #333;
+    margin-bottom: 20px;
+  }
+  
+  .tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    margin-right: 5px;
+    transition: background-color 0.3s;
+  }
+  
+  .tab:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .tab.active {
+    background-color: #fff;
+    border-bottom: 2px solid #fff;
+    margin-bottom: -2px;
+    font-weight: bold;
+  }
+  
+  .tab-content {
+    display: none;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-top: none;
+    background-color: #fff;
+  }
+  
+  .tab-content.active {
+    display: block;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .form-group input[type="text"],
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  
+  .form-group textarea {
+    min-height: 200px;
+    font-family: 'Courier New', monospace;
+  }
+  
+  .form-group input[type="checkbox"] {
+    margin-right: 5px;
+  }
+  
+  button[type="submit"] {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  button[type="submit"]:hover {
+    background-color: #0056b3;
+  }
+  
+  button[type="submit"]:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .result {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+  
+  .result.success {
+    border-color: #28a745;
+    background-color: #d4edda;
+  }
+  
+  .result.error {
+    border-color: #dc3545;
+    background-color: #f8d7da;
+  }
+  
+  .markdown-output {
+    background-color: #fff;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    white-space: pre-wrap;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+  
+  .statistics-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  
+  .statistics-table th,
+  .statistics-table td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ccc;
+  }
+  
+  .statistics-table th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+  }
+  
+  .loading {
+    display: inline-block;
+    margin-left: 10px;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  .info-box {
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 4px;
+    color: #0c5460;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Confluence Integration</h2>
+
+<div class="info-box">
+  <strong>Note:</strong> Confluence credentials must be configured in Vault at path 'confluence/credentials'.
+  Required fields: base_url, email, api_token
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="to-markdown">Page to Markdown</div>
+  <div class="tab" data-tab="from-markdown">Markdown to Page</div>
+  <div class="tab" data-tab="summarize">Summarize Page</div>
+  <div class="tab" data-tab="backup">Backup Space</div>
+  <div class="tab" data-tab="statistics">Statistics</div>
+</div>
+
+<!-- Tab 1: Page to Markdown -->
+<div class="tab-content active" id="to-markdown">
+  <h3>Convert Confluence Page to Markdown</h3>
+  <form id="to-markdown-form">
+    <div class="form-group">
+      <label for="to-markdown-page-id">Page ID:</label>
+      <input type="text" id="to-markdown-page-id" name="page_id" required placeholder="e.g., 123456">
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="to-markdown-save" name="save_to_storage">
+        Save to MinIO storage
+      </label>
+    </div>
+    <button type="submit">Convert to Markdown</button>
+    <span class="loading hidden">Converting...</span>
+  </form>
+  <div id="to-markdown-result" class="result hidden"></div>
+</div>
+
+<!-- Tab 2: Markdown to Page -->
+<div class="tab-content" id="from-markdown">
+  <h3>Convert Markdown to Confluence Page</h3>
+  <form id="from-markdown-form">
+    <div class="form-group">
+      <label for="from-markdown-space-key">Space Key:</label>
+      <input type="text" id="from-markdown-space-key" name="space_key" required placeholder="e.g., PROJ">
+    </div>
+    <div class="form-group">
+      <label for="from-markdown-title">Page Title:</label>
+      <input type="text" id="from-markdown-title" name="title" required placeholder="e.g., My New Page">
+    </div>
+    <div class="form-group">
+      <label for="from-markdown-content">Markdown Content:</label>
+      <textarea id="from-markdown-content" name="markdown" required placeholder="# Heading&#10;&#10;Your markdown content here..."></textarea>
+    </div>
+    <div class="form-group">
+      <label for="from-markdown-parent">Parent Page ID (optional):</label>
+      <input type="text" id="from-markdown-parent" name="parent_id" placeholder="e.g., 123456">
+    </div>
+    <button type="submit">Create/Update Page</button>
+    <span class="loading hidden">Processing...</span>
+  </form>
+  <div id="from-markdown-result" class="result hidden"></div>
+</div>
+
+<!-- Tab 3: Summarize Page -->
+<div class="tab-content" id="summarize">
+  <h3>Summarize Confluence Page with LLM</h3>
+  <form id="summarize-form">
+    <div class="form-group">
+      <label for="summarize-page-id">Page ID:</label>
+      <input type="text" id="summarize-page-id" name="page_id" required placeholder="e.g., 123456">
+    </div>
+    <div class="form-group">
+      <label for="summarize-model">LLM Model:</label>
+      <select id="summarize-model" name="model">
+        <option value="">Default (mistral:latest)</option>
+      </select>
+    </div>
+    <button type="submit">Summarize Page</button>
+    <span class="loading hidden">Summarizing...</span>
+  </form>
+  <div id="summarize-result" class="result hidden"></div>
+</div>
+
+<!-- Tab 4: Backup Space -->
+<div class="tab-content" id="backup">
+  <h3>Backup Confluence Space</h3>
+  <form id="backup-form">
+    <div class="form-group">
+      <label for="backup-space-key">Space Key:</label>
+      <input type="text" id="backup-space-key" name="space_key" required placeholder="e.g., PROJ">
+    </div>
+    <div class="form-group">
+      <label for="backup-format">Format:</label>
+      <select id="backup-format" name="format">
+        <option value="html">HTML</option>
+      </select>
+    </div>
+    <button type="submit">Backup Space</button>
+    <span class="loading hidden">Backing up...</span>
+  </form>
+  <div id="backup-result" class="result hidden"></div>
+</div>
+
+<!-- Tab 5: Statistics -->
+<div class="tab-content" id="statistics">
+  <h3>Confluence Space Statistics</h3>
+  <form id="statistics-form">
+    <div class="form-group">
+      <label for="statistics-space-key">Space Key:</label>
+      <input type="text" id="statistics-space-key" name="space_key" required placeholder="e.g., PROJ">
+    </div>
+    <button type="submit">Get Statistics</button>
+    <span class="loading hidden">Loading...</span>
+  </form>
+  <div id="statistics-result" class="result hidden"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', path='/js/confluence.js') }}"></script>
+{% endblock %}
+

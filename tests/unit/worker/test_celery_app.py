@@ -7,28 +7,26 @@ configuration, ensuring proper setup following SOLID principles.
 from __future__ import annotations
 
 import os
+
 os.environ.setdefault("CELERY_BROKER_URL", "memory://")
 os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
 
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
-import pytest
 from celery import Celery
 
 from src.worker.celery_app import create_celery_app, get_celery_app
 
 if TYPE_CHECKING:
-    from src.worker.config import WorkerConfig
+    pass
 
 
 class TestCreateCeleryApp:
     """Test suite for create_celery_app function."""
 
     @patch("src.worker.celery_app.get_config")
-    def test_create_celery_app_returns_celery_instance(
-        self, mock_get_config: MagicMock
-    ) -> None:
+    def test_create_celery_app_returns_celery_instance(self, mock_get_config: MagicMock) -> None:
         """Test that create_celery_app returns a Celery instance."""
         # Arrange
         mock_config = MagicMock()
@@ -66,13 +64,12 @@ class TestCreateCeleryApp:
         # Assert - compatible with unit test (in-memory) and real settings
         assert app.conf.result_backend is not None
         assert (
-            "postgresql://" in app.conf.result_backend or "cache+memory://" in app.conf.result_backend
+            "postgresql://" in app.conf.result_backend
+            or "cache+memory://" in app.conf.result_backend
         ), f"Expected postgresql:// or cache+memory://, got {app.conf.result_backend}"
 
     @patch("src.worker.celery_app.get_config")
-    def test_create_celery_app_sets_json_serialization(
-        self, mock_get_config: MagicMock
-    ) -> None:
+    def test_create_celery_app_sets_json_serialization(self, mock_get_config: MagicMock) -> None:
         """Test that JSON serialization is configured."""
         # Arrange
         mock_config = MagicMock()
@@ -93,9 +90,7 @@ class TestCreateCeleryApp:
         assert "json" in app.conf.accept_content
 
     @patch("src.worker.celery_app.get_config")
-    def test_create_celery_app_sets_timezone_utc(
-        self, mock_get_config: MagicMock
-    ) -> None:
+    def test_create_celery_app_sets_timezone_utc(self, mock_get_config: MagicMock) -> None:
         """Test that timezone is set to UTC."""
         # Arrange
         mock_config = MagicMock()
@@ -115,9 +110,7 @@ class TestCreateCeleryApp:
         assert app.conf.enable_utc is True
 
     @patch("src.worker.celery_app.get_config")
-    def test_create_celery_app_configures_task_tracking(
-        self, mock_get_config: MagicMock
-    ) -> None:
+    def test_create_celery_app_configures_task_tracking(self, mock_get_config: MagicMock) -> None:
         """Test that task tracking is configured from config."""
         # Arrange
         mock_config = MagicMock()
@@ -136,9 +129,7 @@ class TestCreateCeleryApp:
         assert app.conf.task_track_started is True
 
     @patch("src.worker.celery_app.get_config")
-    def test_create_celery_app_configures_time_limit(
-        self, mock_get_config: MagicMock
-    ) -> None:
+    def test_create_celery_app_configures_time_limit(self, mock_get_config: MagicMock) -> None:
         """Test that task time limit is configured from config."""
         # Arrange
         mock_config = MagicMock()
@@ -157,9 +148,7 @@ class TestCreateCeleryApp:
         assert app.conf.task_time_limit == 7200
 
     @patch("src.worker.celery_app.get_config")
-    def test_create_celery_app_configures_worker_settings(
-        self, mock_get_config: MagicMock
-    ) -> None:
+    def test_create_celery_app_configures_worker_settings(self, mock_get_config: MagicMock) -> None:
         """Test that worker-specific settings are configured."""
         # Arrange
         mock_config = MagicMock()
@@ -179,9 +168,7 @@ class TestCreateCeleryApp:
         assert app.conf.worker_max_tasks_per_child == 2000
 
     @patch("src.worker.celery_app.get_config")
-    def test_create_celery_app_autodiscovers_tasks(
-        self, mock_get_config: MagicMock
-    ) -> None:
+    def test_create_celery_app_autodiscovers_tasks(self, mock_get_config: MagicMock) -> None:
         """Test that tasks are auto-discovered from specified packages."""
         # Arrange
         mock_config = MagicMock()
@@ -196,7 +183,7 @@ class TestCreateCeleryApp:
         # Act
         with patch.object(Celery, "autodiscover_tasks") as mock_autodiscover:
             app = create_celery_app()
-            
+
         # Assert - autodiscover_tasks is called during app initialization
         # We just verify the app was created successfully
         assert isinstance(app, Celery)
@@ -222,4 +209,3 @@ class TestGetCeleryApp:
 
         # Assert - same instance is returned (singleton pattern)
         assert app1 is app2
-

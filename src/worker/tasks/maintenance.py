@@ -45,9 +45,10 @@ def cleanup_old_logs_task(self: Task, retention_days: int | None = None) -> dict
 
     try:
         # Import here to avoid circular dependencies
+        import asyncio
+
         from sqlalchemy import text
         from sqlalchemy.ext.asyncio import create_async_engine
-        import asyncio
 
         # Get database connection from environment
         postgres_dsn = os.environ.get("POSTGRES_DSN")
@@ -74,7 +75,7 @@ def cleanup_old_logs_task(self: Task, retention_days: int | None = None) -> dict
                 async with engine.begin() as conn:
                     result = await conn.execute(
                         text("SELECT * FROM cleanup_old_logs(:retention_days)"),
-                        {"retention_days": retention_days}
+                        {"retention_days": retention_days},
                     )
                     row = result.fetchone()
                     deleted_count = row[0] if row else 0
@@ -125,10 +126,11 @@ def log_statistics_task(self: Task) -> dict[str, any]:
     logger.info("Collecting log statistics")
 
     try:
-        from sqlalchemy import text
-        from sqlalchemy.ext.asyncio import create_async_engine
         import asyncio
         import os
+
+        from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import create_async_engine
 
         # Get database connection
         postgres_dsn = os.environ.get("POSTGRES_DSN")
@@ -150,30 +152,36 @@ def log_statistics_task(self: Task) -> dict[str, any]:
 
                     # Get table size
                     result = await conn.execute(
-                        text("""
+                        text(
+                            """
                             SELECT pg_size_pretty(pg_total_relation_size('application_logs'))
-                        """)
+                        """
+                        )
                     )
                     table_size = result.scalar()
 
                     # Get counts by level
                     result = await conn.execute(
-                        text("""
+                        text(
+                            """
                             SELECT level, COUNT(*) as count
                             FROM application_logs
                             GROUP BY level
-                        """)
+                        """
+                        )
                     )
                     by_level = {row[0]: row[1] for row in result.fetchall()}
 
                     # Get oldest and newest log
                     result = await conn.execute(
-                        text("""
-                            SELECT 
+                        text(
+                            """
+                            SELECT
                                 MIN(timestamp) as oldest,
                                 MAX(timestamp) as newest
                             FROM application_logs
-                        """)
+                        """
+                        )
                     )
                     row = result.fetchone()
                     oldest = row[0].isoformat() if row[0] else None
@@ -202,4 +210,3 @@ def log_statistics_task(self: Task) -> dict[str, any]:
             "message": str(e),
             "timestamp": datetime.utcnow().isoformat(),
         }
-

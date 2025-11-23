@@ -36,7 +36,7 @@ class TestAppFactory:
 
         app = create_app()
 
-        assert app.version == "1.2.0"
+        assert app.version == "1.6.0"
 
     def test_create_app_has_description(self) -> None:
         """Test that the app has a description."""
@@ -130,7 +130,7 @@ class TestAppDependencies:
 
     def test_get_config_dependency_returns_config(self) -> None:
         """Test that get_config dependency returns configuration."""
-        from src.web.app import get_config_dependency, create_app
+        from src.web.app import create_app, get_config_dependency
 
         app = create_app()
         config = get_config_dependency(app)
@@ -138,4 +138,3 @@ class TestAppDependencies:
         assert config is not None
         assert hasattr(config, "host")
         assert hasattr(config, "port")
-

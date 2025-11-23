@@ -175,9 +175,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_with_custom_exception_type(self) -> None:
         """Test circuit breaker with custom exception type."""
-        breaker = CircuitBreaker(
-            failure_threshold=2, timeout=1.0, expected_exception=ValueError
-        )
+        breaker = CircuitBreaker(failure_threshold=2, timeout=1.0, expected_exception=ValueError)
 
         async def value_error_func() -> None:
             raise ValueError("Test error")
@@ -244,4 +242,3 @@ class TestCircuitBreaker:
                 await breaker.call(failing_func)
 
         assert breaker.state == CircuitState.CLOSED
-

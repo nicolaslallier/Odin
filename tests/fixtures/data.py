@@ -115,4 +115,3 @@ def invalid_data_item() -> dict[str, str]:
         "name": "",  # Empty name (invalid)
         "description": None,
     }
-

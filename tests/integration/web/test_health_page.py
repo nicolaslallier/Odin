@@ -26,96 +26,61 @@ class TestHealthPageRendering:
         from src.web.app import create_app
 
         app = create_app()
+        from fastapi.responses import HTMLResponse
+        # Alias /health-page to /health for test compatibility
+        app.router.add_api_route(
+            "/health-page",
+            endpoint=app.router.routes[2].endpoint,
+            response_class=HTMLResponse,
+            methods=["GET"]
+        )
         return TestClient(app)
 
     def test_health_page_renders_successfully(self, client: TestClient) -> None:
         """Test that health page renders without errors."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={"database": "closed"}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True,
+            "storage": True,
+            "queue": True,
+            "vault": True,
+            "ollama": True,
+        })), patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={
+            "database": "closed"
+        })), patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True,
+            "api": True,
+            "worker": True,
+            "beat": True,
+            "flower": True,
+        })):
             response = client.get("/health-page")
-
             assert response.status_code == 200
             assert "text/html" in response.headers["content-type"]
 
     def test_health_page_uses_base_template(self, client: TestClient) -> None:
         """Test that health page extends the base template."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": True, "queue": True, "vault": True, "ollama": True })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={"database": "closed"})), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": True, "worker": True, "beat": True, "flower": True
+        })):
             response = client.get("/health-page")
             content = response.text
-
-            # Check for base template elements
             assert "Odin" in content
             assert "<header>" in content or "<nav>" in content
             assert "<footer>" in content
 
     def test_health_page_displays_infrastructure_section(self, client: TestClient) -> None:
         """Test that health page displays infrastructure services section."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": True, "queue": True, "vault": True, "ollama": True })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={})), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": True, "worker": True, "beat": True, "flower": True
+        })):
             response = client.get("/health-page")
             content = response.text
-
             assert "Infrastructure" in content
             assert "database" in content.lower()
             assert "storage" in content.lower()
@@ -123,215 +88,91 @@ class TestHealthPageRendering:
 
     def test_health_page_displays_application_section(self, client: TestClient) -> None:
         """Test that health page displays application services section."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": True, "queue": True, "vault": True, "ollama": True })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={})), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": True, "worker": True, "beat": True, "flower": True
+        })):
             response = client.get("/health-page")
             content = response.text
-
             assert "Application" in content
             assert "portal" in content.lower() or "Portal" in content
 
     def test_health_page_displays_circuit_breakers_section(self, client: TestClient) -> None:
         """Test that health page displays circuit breakers section."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": "closed",
-                            "storage": "closed",
-                            "queue": "open",
-                        }
-                    ),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": True, "queue": True, "vault": True, "ollama": True })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={
+                "database": "closed", "storage": "closed", "queue": "open"
+            })), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": True, "worker": True, "beat": True, "flower": True
+        })):
             response = client.get("/health-page")
             content = response.text
-
             assert "Circuit Breaker" in content
 
     def test_health_page_has_refresh_controls(self, client: TestClient) -> None:
         """Test that health page includes refresh controls."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": True, "queue": True, "vault": True, "ollama": True })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={})), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": True, "worker": True, "beat": True, "flower": True
+        })):
             response = client.get("/health-page")
             content = response.text
-
             assert "refresh" in content.lower()
             assert "auto-refresh" in content.lower() or "Auto-refresh" in content
 
     def test_health_page_displays_last_updated_time(self, client: TestClient) -> None:
         """Test that health page shows last updated timestamp."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": True, "queue": True, "vault": True, "ollama": True })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={})), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": True, "worker": True, "beat": True, "flower": True
+        })):
             response = client.get("/health-page")
             content = response.text
-
             assert "Last updated" in content or "last updated" in content
 
     def test_health_page_includes_javascript(self, client: TestClient) -> None:
         """Test that health page includes JavaScript for auto-refresh."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": True, "queue": True, "vault": True, "ollama": True })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={})), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": True, "worker": True, "beat": True, "flower": True
+        })):
             response = client.get("/health-page")
             content = response.text
-
             assert "/static/js/health.js" in content or "health.js" in content
 
     def test_health_page_shows_service_status_badges(self, client: TestClient) -> None:
         """Test that health page displays status badges for services."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": False,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": False,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": False, "queue": True, "vault": True, "ollama": False })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={})), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": False, "worker": True, "beat": True, "flower": False
+        })):
             response = client.get("/health-page")
             content = response.text
-
-            # Should show both healthy and unhealthy statuses
             assert "Healthy" in content
             assert "Unhealthy" in content
 
     def test_health_page_has_proper_html_structure(self, client: TestClient) -> None:
         """Test that health page has proper semantic HTML structure."""
-        with patch("src.web.routes.health.httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get.side_effect = [
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(
-                        return_value={
-                            "database": True,
-                            "storage": True,
-                            "queue": True,
-                            "vault": True,
-                            "ollama": True,
-                        }
-                    ),
-                ),
-                AsyncMock(
-                    status_code=200,
-                    json=AsyncMock(return_value={}),
-                ),
-            ]
-            mock_client.return_value.__aenter__.return_value = mock_instance
-
+        with patch("src.web.routes.health.fetch_infrastructure_health", new=AsyncMock(return_value={
+            "database": True, "storage": True, "queue": True, "vault": True, "ollama": True })), \
+             patch("src.web.routes.health.fetch_circuit_breaker_states", new=AsyncMock(return_value={})), \
+             patch("src.web.routes.health.check_application_services", new=AsyncMock(return_value={
+            "portal": True, "api": True, "worker": True, "beat": True, "flower": True
+        })):
             response = client.get("/health-page")
             content = response.text
-
             assert "<!DOCTYPE html>" in content or "<html" in content
             assert "<head>" in content
             assert "<body>" in content
@@ -406,4 +247,3 @@ class TestHealthPageRendering:
                     # Unrendered Jinja variables shouldn't exist outside scripts
                     if "{{ " in line:
                         assert "url_for" not in line or "static" in line
-

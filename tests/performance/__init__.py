@@ -5,5 +5,3 @@ the application can handle expected load and scale appropriately.
 """
 
 from __future__ import annotations
-
-

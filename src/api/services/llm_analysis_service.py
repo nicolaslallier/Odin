@@ -8,15 +8,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.api.exceptions import ValidationError
 from src.api.services.llm_prompts import (
-    get_root_cause_analysis_prompt,
-    get_pattern_detection_prompt,
     get_anomaly_detection_prompt,
-    get_event_correlation_prompt,
     get_error_summarization_prompt,
+    get_event_correlation_prompt,
+    get_pattern_detection_prompt,
+    get_root_cause_analysis_prompt,
 )
 from src.api.services.ollama import OllamaService
-from src.api.exceptions import ValidationError
 
 
 class LLMLogAnalyzer:
@@ -174,8 +174,12 @@ class LLMLogAnalyzer:
             Structured analysis results
         """
         # Extract sections from response
-        findings = self._extract_list_items(response, ["findings", "issues", "problems", "observations"])
-        recommendations = self._extract_list_items(response, ["recommendations", "suggestions", "fixes", "actions"])
+        findings = self._extract_list_items(
+            response, ["findings", "issues", "problems", "observations"]
+        )
+        recommendations = self._extract_list_items(
+            response, ["recommendations", "suggestions", "fixes", "actions"]
+        )
         patterns = self._extract_patterns(response)
 
         # Extract summary (first paragraph or first few lines)
@@ -223,7 +227,9 @@ class LLMLogAnalyzer:
                 continue
 
             # Check if we're leaving the section (new header or empty line after items)
-            if in_section and (line.startswith("#") or (line_lower.startswith("**") and ":" in line)):
+            if in_section and (
+                line.startswith("#") or (line_lower.startswith("**") and ":" in line)
+            ):
                 if items:  # Only stop if we've collected items
                     break
 
@@ -231,16 +237,29 @@ class LLMLogAnalyzer:
             if in_section:
                 # Handle numbered lists: "1. Item"
                 if line.strip() and (
-                    line.strip()[0].isdigit() or
-                    line.strip().startswith("-") or
-                    line.strip().startswith("*") or
-                    line.strip().startswith("•")
+                    line.strip()[0].isdigit()
+                    or line.strip().startswith("-")
+                    or line.strip().startswith("*")
+                    or line.strip().startswith("•")
                 ):
                     # Remove list markers
                     item = line.strip()
-                    for marker in ["1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "-", "*", "•"]:
+                    for marker in [
+                        "1.",
+                        "2.",
+                        "3.",
+                        "4.",
+                        "5.",
+                        "6.",
+                        "7.",
+                        "8.",
+                        "9.",
+                        "-",
+                        "*",
+                        "•",
+                    ]:
                         if item.startswith(marker):
-                            item = item[len(marker):].strip()
+                            item = item[len(marker) :].strip()
                             break
 
                     if item:
@@ -270,22 +289,21 @@ class LLMLogAnalyzer:
 
             # Detect pattern descriptions (usually start with numbers or bullets)
             if line and (
-                (line[0].isdigit() and ". " in line) or
-                line.startswith("-") or
-                line.startswith("*")
+                (line[0].isdigit() and ". " in line) or line.startswith("-") or line.startswith("*")
             ):
                 # Extract pattern description
                 description = line
                 for marker in ["1.", "2.", "3.", "4.", "5.", "- ", "* "]:
                     if description.startswith(marker):
-                        description = description[len(marker):].strip()
+                        description = description[len(marker) :].strip()
 
                 if description and len(description) > 10:
-                    patterns.append({
-                        "description": description,
-                        "frequency": "unknown",  # Could be enhanced to extract frequency
-                        "severity": "unknown",  # Could be enhanced to extract severity
-                    })
+                    patterns.append(
+                        {
+                            "description": description,
+                            "frequency": "unknown",  # Could be enhanced to extract frequency
+                            "severity": "unknown",  # Could be enhanced to extract severity
+                        }
+                    )
 
         return patterns[:5]  # Limit to top 5 patterns
-

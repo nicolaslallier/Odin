@@ -7,7 +7,7 @@ for the API service.
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 import hvac
 
@@ -33,7 +33,7 @@ class VaultService:
         """
         self.addr = addr
         self.token = token
-        self._client: Optional[hvac.Client] = None
+        self._client: hvac.Client | None = None
 
     def get_client(self) -> hvac.Client:
         """Get or create the Vault client.
@@ -66,7 +66,7 @@ class VaultService:
         except Exception as e:
             raise ServiceUnavailableError(f"Vault unreachable: {e}")
 
-    def read_secret(self, path: str) -> Optional[dict[str, Any]]:
+    def read_secret(self, path: str) -> dict[str, Any] | None:
         """Read a secret from Vault.
 
         Args:
@@ -145,4 +145,3 @@ class VaultService:
             return result
         except Exception:
             return False
-

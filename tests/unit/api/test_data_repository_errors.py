@@ -44,18 +44,24 @@ class TestDataRepositoryErrors:
     async def test_update_nonexistent_item(self, repository: DataRepository) -> None:
         """Test that updating nonexistent item raises ResourceNotFoundError."""
         # Mock get_by_id to raise ResourceNotFoundError
-        with patch.object(repository, "get_by_id", side_effect=ResourceNotFoundError("Data item not found", {"id": 999})):
-            with pytest.raises(ResourceNotFoundError):
-                item = DataItem(id=999, name="New Name", description="Test")
-                await repository.update(item)
+        with patch.object(
+            repository,
+            "get_by_id",
+            side_effect=ResourceNotFoundError("Data item not found", {"id": 999}),
+        ), pytest.raises(ResourceNotFoundError):
+            item = DataItem(id=999, name="New Name", description="Test")
+            await repository.update(item)
 
     @pytest.mark.asyncio
     async def test_delete_nonexistent_item(self, repository: DataRepository) -> None:
         """Test that deleting nonexistent item raises ResourceNotFoundError."""
         # Mock get_by_id to raise ResourceNotFoundError
-        with patch.object(repository, "get_by_id", side_effect=ResourceNotFoundError("Data item not found", {"id": 999})):
-            with pytest.raises(ResourceNotFoundError):
-                await repository.delete(999)
+        with patch.object(
+            repository,
+            "get_by_id",
+            side_effect=ResourceNotFoundError("Data item not found", {"id": 999}),
+        ), pytest.raises(ResourceNotFoundError):
+            await repository.delete(999)
 
     @pytest.mark.asyncio
     async def test_create_with_empty_name(self, repository: DataRepository) -> None:
@@ -66,7 +72,7 @@ class TestDataRepositoryErrors:
         mock_result.inserted_primary_key = (1,)
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
-        
+
         item = DataItem(name="", description="Test")
         result = await repository.create(item)
         assert result.name == ""
@@ -80,7 +86,7 @@ class TestDataRepositoryErrors:
         mock_result.inserted_primary_key = (1,)
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
-        
+
         item = DataItem(name="Test", description=None)
         result = await repository.create(item)
         assert result.description is None
@@ -128,7 +134,7 @@ class TestDataRepositoryErrors:
             mock_session = repository.session
             mock_session.execute = AsyncMock()
             mock_session.commit = AsyncMock()
-            
+
             # Update the item
             updated_item = DataItem(id=1, name="Updated", description="New")
             result = await repository.update(updated_item)
@@ -148,13 +154,13 @@ class TestDataRepositoryErrors:
                 }
             }
         }
-        
+
         mock_session = repository.session
         mock_result = MagicMock()
         mock_result.inserted_primary_key = (1,)
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
-        
+
         # This should work as JSON can handle nested structures
         item = DataItem(name="Complex", description="Test", data=complex_data)
         result = await repository.create(item)
@@ -165,19 +171,19 @@ class TestDataRepositoryErrors:
         """Test concurrent updates to same item."""
         # This tests potential race conditions
         existing_item = DataItem(id=1, name="Original", description="Test")
-        
+
         with patch.object(repository, "get_by_id", return_value=existing_item):
             mock_session = repository.session
             mock_session.execute = AsyncMock()
             mock_session.commit = AsyncMock()
-            
+
             # Simulate concurrent updates
             import asyncio
 
             item1 = DataItem(id=1, name="Update1", description="Test")
             item2 = DataItem(id=1, name="Update2", description="Test")
             item3 = DataItem(id=1, name="Update3", description="Test")
-            
+
             await asyncio.gather(
                 repository.update(item1),
                 repository.update(item2),
@@ -198,7 +204,7 @@ class TestDataRepositoryErrors:
             "Name with\nnewline",
             "Name with\ttab",
         ]
-        
+
         mock_session = repository.session
         mock_result = MagicMock()
         mock_result.inserted_primary_key = (1,)
@@ -215,12 +221,12 @@ class TestDataRepositoryErrors:
     async def test_update_with_empty_string(self, repository: DataRepository) -> None:
         """Test update with empty string values."""
         existing_item = DataItem(id=1, name="Original", description="Old")
-        
+
         with patch.object(repository, "get_by_id", return_value=existing_item):
             mock_session = repository.session
             mock_session.execute = AsyncMock()
             mock_session.commit = AsyncMock()
-            
+
             # Empty strings should be valid
             updated_item = DataItem(id=1, name="", description="")
             result = await repository.update(updated_item)
@@ -232,7 +238,7 @@ class TestDataRepositoryErrors:
         """Test creating item with very long strings."""
         long_name = "x" * 10000
         long_description = "y" * 100000
-        
+
         mock_session = repository.session
         mock_result = MagicMock()
         mock_result.inserted_primary_key = (1,)
@@ -253,12 +259,11 @@ class TestDataRepositoryErrors:
     async def test_delete_success(self, repository: DataRepository) -> None:
         """Test that delete works correctly."""
         existing_item = DataItem(id=1, name="To Delete", description="Test")
-        
+
         with patch.object(repository, "get_by_id", return_value=existing_item):
             mock_session = repository.session
             mock_session.execute = AsyncMock()
             mock_session.commit = AsyncMock()
-            
+
             # Delete should complete without error
             await repository.delete(1)
-

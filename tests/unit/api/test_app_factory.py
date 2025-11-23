@@ -32,9 +32,9 @@ class TestAppFactory:
             vault_token="token",
             ollama_base_url="http://ollama:11434",
         )
-        
+
         app = create_app(mock_config)
-        
+
         assert isinstance(app, FastAPI)
         assert app.title == "Odin API Service"
 
@@ -52,12 +52,12 @@ class TestAppFactory:
             vault_token="token",
             ollama_base_url="http://ollama:11434",
         )
-        
+
         app = create_app(mock_config)
         client = TestClient(app)
-        
+
         response = client.get("/health")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
@@ -76,9 +76,9 @@ class TestAppFactory:
             vault_token="token",
             ollama_base_url="http://ollama:11434",
         )
-        
+
         app = create_app(mock_config)
-        
+
         # Check routes are registered
         routes = [route.path for route in app.routes]
         assert any("/health" in route for route in routes)
@@ -99,9 +99,9 @@ class TestAppFactory:
             vault_token="custom-token",
             ollama_base_url="http://ollama:11434",
         )
-        
+
         app = create_app(config)
-        
+
         assert isinstance(app, FastAPI)
         assert app.state.config == config
 
@@ -121,16 +121,18 @@ class TestAppFactory:
                 ollama_base_url="http://ollama:11434",
             )
             mock_get_config.return_value = mock_config
-            
+
             app = create_app()
-            
+
             assert isinstance(app, FastAPI)
             mock_get_config.assert_called_once()
 
     def test_resource_not_found_handler_returns_404(self) -> None:
+        from fastapi.testclient import TestClient
+
         from src.api.app import create_app
         from src.api.exceptions import ResourceNotFoundError
-        from fastapi.testclient import TestClient
+
         config = APIConfig(
             host="0.0.0.0",
             port=8001,
@@ -157,9 +159,10 @@ class TestAppFactory:
     def test_get_service_container_error(self) -> None:
         """Test get_container raises RuntimeError when container not initialized."""
         from fastapi import FastAPI
+
         from src.api.app import get_container
+
         app = FastAPI()
         # No container added
         with pytest.raises(RuntimeError, match="Service container not initialized"):
             get_container(app)
-

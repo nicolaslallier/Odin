@@ -7,7 +7,7 @@ the persistence of SQL query execution history.
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
@@ -62,7 +62,10 @@ class TestCreate:
 
     @pytest.mark.asyncio
     async def test_create_success(
-        self, query_history_repo: QueryHistoryRepository, mock_session: AsyncMock, sample_query_history: QueryHistory
+        self,
+        query_history_repo: QueryHistoryRepository,
+        mock_session: AsyncMock,
+        sample_query_history: QueryHistory,
     ) -> None:
         """Test successful creation of query history record."""
         # Arrange
@@ -81,7 +84,10 @@ class TestCreate:
 
     @pytest.mark.asyncio
     async def test_create_database_error(
-        self, query_history_repo: QueryHistoryRepository, mock_session: AsyncMock, sample_query_history: QueryHistory
+        self,
+        query_history_repo: QueryHistoryRepository,
+        mock_session: AsyncMock,
+        sample_query_history: QueryHistory,
     ) -> None:
         """Test handling of database errors during creation."""
         # Arrange
@@ -90,7 +96,7 @@ class TestCreate:
         # Act & Assert
         with pytest.raises(DatabaseError, match="Failed to create query history"):
             await query_history_repo.create(sample_query_history)
-        
+
         mock_session.rollback.assert_called_once()
 
 
@@ -300,10 +306,10 @@ class TestDelete:
         mock_row.row_count = 10
         mock_row.error_message = None
         mock_get_result.first.return_value = mock_row
-        
+
         # Mock delete operation
         mock_delete_result = MagicMock()
-        
+
         mock_session.execute.side_effect = [mock_get_result, mock_delete_result]
 
         # Act
@@ -344,7 +350,7 @@ class TestDelete:
         mock_row.row_count = 10
         mock_row.error_message = None
         mock_get_result.first.return_value = mock_row
-        
+
         # Second call for delete fails
         mock_session.execute.side_effect = [
             mock_get_result,
@@ -354,7 +360,7 @@ class TestDelete:
         # Act & Assert
         with pytest.raises(DatabaseError, match="Failed to delete query history"):
             await query_history_repo.delete(1)
-        
+
         mock_session.rollback.assert_called_once()
 
 
@@ -453,6 +459,5 @@ class TestDeleteOldRecords:
         # Act & Assert
         with pytest.raises(DatabaseError, match="Failed to delete old query history"):
             await query_history_repo.delete_old_records(days=30)
-        
-        mock_session.rollback.assert_called_once()
 
+        mock_session.rollback.assert_called_once()

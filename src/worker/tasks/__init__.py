@@ -36,4 +36,3 @@ __all__ = [
     "process_webhook",
     "send_notification",
 ]
-

@@ -5,5 +5,3 @@ separate from infrastructure concerns following DDD principles.
 """
 
 from __future__ import annotations
-
-

@@ -6,10 +6,7 @@ application logs.
 
 from __future__ import annotations
 
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from src.api.exceptions import DatabaseError, ValidationError
 from src.api.models.schemas import (
@@ -17,12 +14,11 @@ from src.api.models.schemas import (
     LogAnalysisResponse,
     LogEntry,
     LogListResponse,
-    LogSearchRequest,
     LogStatistics,
 )
 from src.api.repositories.log_repository import LogRepository
-from src.api.services.log_service import LogService
 from src.api.services.llm_analysis_service import LLMLogAnalyzer
+from src.api.services.log_service import LogService
 
 router = APIRouter(prefix="/api/v1/logs", tags=["logs"])
 
@@ -70,11 +66,11 @@ async def get_llm_analyzer(request: Request) -> LLMLogAnalyzer:
 
 @router.get("", response_model=LogListResponse)
 async def get_logs(
-    start_time: Optional[str] = Query(None, description="Start time (ISO format)"),
-    end_time: Optional[str] = Query(None, description="End time (ISO format)"),
-    level: Optional[str] = Query(None, description="Log level filter"),
-    service_filter: Optional[str] = Query(None, alias="service", description="Service name filter"),
-    search: Optional[str] = Query(None, description="Search term"),
+    start_time: str | None = Query(None, description="Start time (ISO format)"),
+    end_time: str | None = Query(None, description="End time (ISO format)"),
+    level: str | None = Query(None, description="Log level filter"),
+    service_filter: str | None = Query(None, alias="service", description="Service name filter"),
+    search: str | None = Query(None, description="Search term"),
     limit: int = Query(100, ge=1, le=1000, description="Page size"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     request: Request = None,
@@ -186,8 +182,8 @@ async def search_logs(
 
 @router.get("/stats", response_model=LogStatistics)
 async def get_log_statistics(
-    start_time: Optional[str] = Query(None, description="Start time (ISO format)"),
-    end_time: Optional[str] = Query(None, description="End time (ISO format)"),
+    start_time: str | None = Query(None, description="Start time (ISO format)"),
+    end_time: str | None = Query(None, description="End time (ISO format)"),
     request: Request = None,
 ) -> LogStatistics:
     """Get aggregated log statistics.
@@ -230,8 +226,8 @@ async def get_log_statistics(
 
 @router.get("/correlate", response_model=LogListResponse)
 async def get_correlated_logs(
-    request_id: Optional[str] = Query(None, description="Request correlation ID"),
-    task_id: Optional[str] = Query(None, description="Task correlation ID"),
+    request_id: str | None = Query(None, description="Request correlation ID"),
+    task_id: str | None = Query(None, description="Task correlation ID"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum results"),
     request: Request = None,
 ) -> LogListResponse:
@@ -312,7 +308,7 @@ async def analyze_logs(
 
             if analysis_request.log_ids:
                 # Get specific logs by ID
-                for log_id in analysis_request.log_ids[:analysis_request.max_logs]:
+                for log_id in analysis_request.log_ids[: analysis_request.max_logs]:
                     log = await service.get_log_by_id(log_id)
                     if log:
                         logs.append(log)
@@ -396,4 +392,3 @@ async def get_log_by_id(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
-

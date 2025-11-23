@@ -24,9 +24,7 @@ class TaskService:
         """Initialize the task service with Celery app."""
         self.celery_app = get_celery_app()
 
-    def dispatch_bulk_data_processing(
-        self, data_items: list[dict[str, Any]]
-    ) -> dict[str, str]:
+    def dispatch_bulk_data_processing(self, data_items: list[dict[str, Any]]) -> dict[str, str]:
         """Dispatch a bulk data processing task.
 
         Args:
@@ -45,9 +43,7 @@ class TaskService:
         task = process_bulk_data.delay(data_items)
         return {"task_id": task.id, "status": "dispatched"}
 
-    def dispatch_notification(
-        self, notification_data: dict[str, Any]
-    ) -> dict[str, str]:
+    def dispatch_notification(self, notification_data: dict[str, Any]) -> dict[str, str]:
         """Dispatch a notification task.
 
         Args:
@@ -122,4 +118,3 @@ def get_task_service() -> TaskService:
         >>> service.dispatch_notification({...})
     """
     return TaskService()
-

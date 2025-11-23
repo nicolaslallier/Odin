@@ -67,8 +67,8 @@ class TestSecretsRoutes:
 
     def test_write_secret_error(self, client: TestClient, app: FastAPI) -> None:
         """Test writing a secret with error."""
-        from src.api.routes.secrets import get_vault_service
         from src.api.exceptions import VaultError
+        from src.api.routes.secrets import get_vault_service
 
         mock_vault = MagicMock()
         mock_vault.write_secret = MagicMock(side_effect=VaultError("Vault error"))
@@ -107,8 +107,8 @@ class TestSecretsRoutes:
 
     def test_read_secret_not_found(self, client: TestClient, app: FastAPI) -> None:
         """Test reading a non-existent secret."""
-        from src.api.routes.secrets import get_vault_service
         from src.api.exceptions import ResourceNotFoundError
+        from src.api.routes.secrets import get_vault_service
 
         mock_vault = MagicMock()
         mock_vault.read_secret = MagicMock(side_effect=ResourceNotFoundError("Secret not found"))
@@ -125,8 +125,8 @@ class TestSecretsRoutes:
 
     def test_read_secret_error(self, client: TestClient, app: FastAPI) -> None:
         """Test reading a secret with error."""
-        from src.api.routes.secrets import get_vault_service
         from src.api.exceptions import VaultError
+        from src.api.routes.secrets import get_vault_service
 
         mock_vault = MagicMock()
         mock_vault.read_secret = MagicMock(side_effect=VaultError("Vault error"))
@@ -161,8 +161,8 @@ class TestSecretsRoutes:
 
     def test_delete_secret_error(self, client: TestClient, app: FastAPI) -> None:
         """Test deleting a secret with error."""
-        from src.api.routes.secrets import get_vault_service
         from src.api.exceptions import VaultError
+        from src.api.routes.secrets import get_vault_service
 
         mock_vault = MagicMock()
         mock_vault.delete_secret = MagicMock(side_effect=VaultError("Vault error"))
@@ -176,4 +176,3 @@ class TestSecretsRoutes:
             assert "Vault error" in response.json()["detail"]
         finally:
             app.dependency_overrides.clear()
-

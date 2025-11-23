@@ -51,13 +51,14 @@ class TestHealthRouteHandlers:
 
         app = create_app()
         return TestClient(app)
-    
 
     def test_health_page_returns_200(self, client: TestClient) -> None:
         """Test that health page returns 200 status code."""
-        with patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra, \
-             patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb, \
-             patch("src.web.routes.health.check_application_services") as mock_app:
+        with (
+            patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra,
+            patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb,
+            patch("src.web.routes.health.check_application_services") as mock_app,
+        ):
             # Mock infrastructure health
             mock_infra.return_value = {
                 "database": True,
@@ -66,10 +67,10 @@ class TestHealthRouteHandlers:
                 "vault": True,
                 "ollama": True,
             }
-            
+
             # Mock circuit breaker states
             mock_cb.return_value = {"database": "closed", "storage": "closed"}
-            
+
             # Mock application services
             mock_app.return_value = {
                 "portal": True,
@@ -85,9 +86,11 @@ class TestHealthRouteHandlers:
 
     def test_health_page_returns_html(self, client: TestClient) -> None:
         """Test that health page returns HTML content."""
-        with patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra, \
-             patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb, \
-             patch("src.web.routes.health.check_application_services") as mock_app:
+        with (
+            patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra,
+            patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb,
+            patch("src.web.routes.health.check_application_services") as mock_app,
+        ):
             # Mock infrastructure health
             mock_infra.return_value = {
                 "database": True,
@@ -96,10 +99,10 @@ class TestHealthRouteHandlers:
                 "vault": True,
                 "ollama": True,
             }
-            
+
             # Mock circuit breaker states
             mock_cb.return_value = {}
-            
+
             # Mock application services
             mock_app.return_value = {
                 "portal": True,
@@ -115,9 +118,11 @@ class TestHealthRouteHandlers:
 
     def test_health_page_contains_health_title(self, client: TestClient) -> None:
         """Test that health page contains health monitoring title."""
-        with patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra, \
-             patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb, \
-             patch("src.web.routes.health.check_application_services") as mock_app:
+        with (
+            patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra,
+            patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb,
+            patch("src.web.routes.health.check_application_services") as mock_app,
+        ):
             # Mock infrastructure health
             mock_infra.return_value = {
                 "database": True,
@@ -126,10 +131,10 @@ class TestHealthRouteHandlers:
                 "vault": True,
                 "ollama": True,
             }
-            
+
             # Mock circuit breaker states
             mock_cb.return_value = {}
-            
+
             # Mock application services
             mock_app.return_value = {
                 "portal": True,
@@ -145,9 +150,11 @@ class TestHealthRouteHandlers:
 
     def test_health_api_returns_json(self, client: TestClient) -> None:
         """Test that health API endpoint returns JSON data."""
-        with patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra, \
-             patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb, \
-             patch("src.web.routes.health.check_application_services") as mock_app:
+        with (
+            patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra,
+            patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb,
+            patch("src.web.routes.health.check_application_services") as mock_app,
+        ):
             # Mock infrastructure health
             mock_infra.return_value = {
                 "database": True,
@@ -156,10 +163,10 @@ class TestHealthRouteHandlers:
                 "vault": True,
                 "ollama": True,
             }
-            
+
             # Mock circuit breaker states
             mock_cb.return_value = {"database": "closed"}
-            
+
             # Mock application services
             mock_app.return_value = {
                 "portal": True,
@@ -176,9 +183,11 @@ class TestHealthRouteHandlers:
 
     def test_health_api_returns_infrastructure_services(self, client: TestClient) -> None:
         """Test that health API returns infrastructure service statuses."""
-        with patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra, \
-             patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb, \
-             patch("src.web.routes.health.check_application_services") as mock_app:
+        with (
+            patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra,
+            patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb,
+            patch("src.web.routes.health.check_application_services") as mock_app,
+        ):
             # Mock infrastructure health
             mock_infra.return_value = {
                 "database": True,
@@ -187,10 +196,10 @@ class TestHealthRouteHandlers:
                 "vault": True,
                 "ollama": True,
             }
-            
+
             # Mock circuit breaker states
             mock_cb.return_value = {}
-            
+
             # Mock application services
             mock_app.return_value = {
                 "portal": True,
@@ -226,9 +235,11 @@ class TestHealthRouteHandlers:
 
     def test_health_api_returns_circuit_breaker_states(self, client: TestClient) -> None:
         """Test that health API returns circuit breaker states."""
-        with patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra, \
-             patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb, \
-             patch("src.web.routes.health.check_application_services") as mock_app:
+        with (
+            patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra,
+            patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb,
+            patch("src.web.routes.health.check_application_services") as mock_app,
+        ):
             # Mock infrastructure health
             mock_infra.return_value = {
                 "database": True,
@@ -237,14 +248,14 @@ class TestHealthRouteHandlers:
                 "vault": True,
                 "ollama": True,
             }
-            
+
             # Mock circuit breaker states
             mock_cb.return_value = {
                 "database": "closed",
                 "storage": "closed",
                 "queue": "open",
             }
-            
+
             # Mock application services
             mock_app.return_value = {
                 "portal": True,
@@ -263,9 +274,11 @@ class TestHealthRouteHandlers:
 
     def test_health_api_includes_application_services(self, client: TestClient) -> None:
         """Test that health API includes application service checks."""
-        with patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra, \
-             patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb, \
-             patch("src.web.routes.health.check_application_services") as mock_app:
+        with (
+            patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra,
+            patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb,
+            patch("src.web.routes.health.check_application_services") as mock_app,
+        ):
             # Mock infrastructure health
             mock_infra.return_value = {
                 "database": True,
@@ -274,10 +287,10 @@ class TestHealthRouteHandlers:
                 "vault": True,
                 "ollama": True,
             }
-            
+
             # Mock circuit breaker states
             mock_cb.return_value = {}
-            
+
             # Mock application services
             mock_app.return_value = {
                 "portal": True,
@@ -295,9 +308,11 @@ class TestHealthRouteHandlers:
 
     def test_health_page_graceful_degradation_on_api_error(self, client: TestClient) -> None:
         """Test that health page gracefully handles API errors."""
-        with patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra, \
-             patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb, \
-             patch("src.web.routes.health.check_application_services") as mock_app:
+        with (
+            patch("src.web.routes.health.fetch_infrastructure_health") as mock_infra,
+            patch("src.web.routes.health.fetch_circuit_breaker_states") as mock_cb,
+            patch("src.web.routes.health.check_application_services") as mock_app,
+        ):
             # Mock infrastructure health - simulate API error with default values
             mock_infra.return_value = {
                 "database": False,
@@ -306,10 +321,10 @@ class TestHealthRouteHandlers:
                 "vault": False,
                 "ollama": False,
             }
-            
+
             # Mock circuit breaker states - empty when API is down
             mock_cb.return_value = {}
-            
+
             # Mock application services - degraded state
             mock_app.return_value = {
                 "portal": True,
@@ -324,4 +339,3 @@ class TestHealthRouteHandlers:
             # Should still return 200 but show degraded state
             assert response.status_code == 200
             assert "text/html" in response.headers["content-type"]
-

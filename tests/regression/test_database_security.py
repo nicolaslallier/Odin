@@ -6,7 +6,7 @@ and destructive query confirmation requirements are maintained.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -362,4 +362,3 @@ class TestQueryValidation:
             assert result["is_valid"] is True
             assert result["query_type"] == expected_type
             assert result["is_destructive"] == expected_destructive
-

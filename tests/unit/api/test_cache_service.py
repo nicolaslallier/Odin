@@ -86,14 +86,14 @@ class TestCacheService:
         """Test that cache entries expire after TTL."""
         cache = CacheService(default_ttl=0.1)
         await cache.set("key1", "value1")
-        
+
         # Should be available immediately
         result = await cache.get("key1")
         assert result == "value1"
-        
+
         # Wait for expiration
         await asyncio.sleep(0.15)
-        
+
         # Should be expired
         result = await cache.get("key1")
         assert result is None
@@ -103,10 +103,10 @@ class TestCacheService:
         """Test cache entry with custom TTL."""
         cache = CacheService(default_ttl=10.0)
         await cache.set("key1", "value1", ttl=0.1)
-        
+
         # Wait for custom TTL expiration
         await asyncio.sleep(0.15)
-        
+
         result = await cache.get("key1")
         assert result is None
 
@@ -116,10 +116,10 @@ class TestCacheService:
         cache = CacheService()
         await cache.set("key1", "value1", ttl=0.1)
         await cache.set("key2", "value2", ttl=10.0)
-        
+
         # Wait for first entry to expire
         await asyncio.sleep(0.15)
-        
+
         cleaned = await cache.cleanup_expired()
         assert cleaned == 1
         assert cache.size() == 1
@@ -129,13 +129,13 @@ class TestCacheService:
         """Test cache size tracking."""
         cache = CacheService()
         assert cache.size() == 0
-        
+
         await cache.set("key1", "value1")
         assert cache.size() == 1
-        
+
         await cache.set("key2", "value2")
         assert cache.size() == 2
-        
+
         await cache.delete("key1")
         assert cache.size() == 1
 
@@ -143,27 +143,27 @@ class TestCacheService:
     async def test_cache_concurrent_access(self) -> None:
         """Test that cache handles concurrent access correctly."""
         cache = CacheService()
-        
+
         async def writer(key: str, value: str) -> None:
             await cache.set(key, value)
-        
+
         async def reader(key: str) -> str | None:
             return await cache.get(key)
-        
+
         # Concurrent writes
         await asyncio.gather(
             writer("key1", "value1"),
             writer("key2", "value2"),
             writer("key3", "value3"),
         )
-        
+
         # Concurrent reads
         results = await asyncio.gather(
             reader("key1"),
             reader("key2"),
             reader("key3"),
         )
-        
+
         assert results == ["value1", "value2", "value3"]
 
     @pytest.mark.asyncio
@@ -172,7 +172,7 @@ class TestCacheService:
         cache = CacheService()
         await cache.set("key1", "value1")
         await cache.set("key1", "value2")
-        
+
         result = await cache.get("key1")
         assert result == "value2"
 
@@ -180,12 +180,12 @@ class TestCacheService:
     async def test_cache_stores_different_types(self) -> None:
         """Test that cache can store different data types."""
         cache = CacheService()
-        
+
         await cache.set("string", "text")
         await cache.set("int", 42)
         await cache.set("list", [1, 2, 3])
         await cache.set("dict", {"key": "value"})
-        
+
         assert await cache.get("string") == "text"
         assert await cache.get("int") == 42
         assert await cache.get("list") == [1, 2, 3]
@@ -203,10 +203,10 @@ class TestCacheService:
         """Test that expired entry is removed when accessed."""
         cache = CacheService()
         await cache.set("key1", "value1", ttl=0.1)
-        
+
         assert cache.size() == 1
         await asyncio.sleep(0.15)
-        
+
         # Accessing expired entry should remove it
         result = await cache.get("key1")
         assert result is None
@@ -217,7 +217,7 @@ class TestCacheService:
         """Test cache behavior with zero TTL (immediately expired)."""
         cache = CacheService()
         await cache.set("key1", "value1", ttl=0.0)
-        
+
         # Should be immediately expired
         result = await cache.get("key1")
         assert result is None
@@ -227,8 +227,7 @@ class TestCacheService:
         """Test cache behavior with negative TTL (immediately expired)."""
         cache = CacheService()
         await cache.set("key1", "value1", ttl=-1.0)
-        
+
         # Should be immediately expired
         result = await cache.get("key1")
         assert result is None
-

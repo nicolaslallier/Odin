@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -36,15 +36,15 @@ class TestFileRoutes:
     def app(self, mock_config: APIConfig) -> FastAPI:
         """Create a test FastAPI app."""
         from src.api.services.container import ServiceContainer
-        
+
         app = FastAPI()
         app.state.config = mock_config
-        
+
         # Create a mock container with mock services
         mock_container = MagicMock(spec=ServiceContainer)
         mock_container.storage = MagicMock()
         app.state.container = mock_container
-        
+
         app.include_router(router)
         return app
 
@@ -56,20 +56,20 @@ class TestFileRoutes:
     def test_upload_file_success(self, client: TestClient, app: FastAPI) -> None:
         """Test file upload endpoint."""
         from src.api.routes.files import get_storage_service
-        
+
         mock_storage = MagicMock()
         mock_storage.bucket_exists.return_value = True
         mock_storage.upload_file = MagicMock()
-        
+
         app.dependency_overrides[get_storage_service] = lambda: mock_storage
-        
+
         try:
             files = {"file": ("test.txt", BytesIO(b"test content"), "text/plain")}
             response = client.post(
                 "/files/upload?bucket=test-bucket&key=test.txt",
                 files=files,
             )
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["bucket"] == "test-bucket"
@@ -80,15 +80,15 @@ class TestFileRoutes:
     def test_list_files_success(self, client: TestClient, app: FastAPI) -> None:
         """Test file listing endpoint."""
         from src.api.routes.files import get_storage_service
-        
+
         mock_storage = MagicMock()
         mock_storage.list_files.return_value = ["file1.txt", "file2.txt"]
-        
+
         app.dependency_overrides[get_storage_service] = lambda: mock_storage
-        
+
         try:
             response = client.get("/files/?bucket=test-bucket")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["bucket"] == "test-bucket"
@@ -99,15 +99,15 @@ class TestFileRoutes:
     def test_delete_file_success(self, client: TestClient, app: FastAPI) -> None:
         """Test file deletion endpoint."""
         from src.api.routes.files import get_storage_service
-        
+
         mock_storage = MagicMock()
         mock_storage.delete_file = MagicMock()
-        
+
         app.dependency_overrides[get_storage_service] = lambda: mock_storage
-        
+
         try:
             response = client.delete("/files/test.txt?bucket=test-bucket")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert "deleted" in data["message"].lower()
@@ -117,21 +117,21 @@ class TestFileRoutes:
     def test_upload_file_with_bucket_creation(self, client: TestClient, app: FastAPI) -> None:
         """Test file upload when bucket doesn't exist."""
         from src.api.routes.files import get_storage_service
-        
+
         mock_storage = MagicMock()
         mock_storage.bucket_exists.return_value = False
         mock_storage.create_bucket = MagicMock()
         mock_storage.upload_file = MagicMock()
-        
+
         app.dependency_overrides[get_storage_service] = lambda: mock_storage
-        
+
         try:
             files = {"file": ("test.txt", BytesIO(b"test content"), "text/plain")}
             response = client.post(
                 "/files/upload?bucket=test-bucket&key=test.txt",
                 files=files,
             )
-            
+
             assert response.status_code == 200
             mock_storage.create_bucket.assert_called_once_with("test-bucket")
             mock_storage.upload_file.assert_called_once()
@@ -141,19 +141,18 @@ class TestFileRoutes:
     def test_list_files_with_prefix(self, client: TestClient, app: FastAPI) -> None:
         """Test file listing with prefix."""
         from src.api.routes.files import get_storage_service
-        
+
         mock_storage = MagicMock()
         mock_storage.list_files.return_value = ["prefix/file1.txt"]
-        
+
         app.dependency_overrides[get_storage_service] = lambda: mock_storage
-        
+
         try:
             response = client.get("/files/?bucket=test-bucket&prefix=prefix/")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["bucket"] == "test-bucket"
             assert "prefix/file1.txt" in data["files"]
         finally:
             app.dependency_overrides.clear()
-

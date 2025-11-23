@@ -6,8 +6,8 @@ and that the routing configuration is working correctly.
 
 from __future__ import annotations
 
-import pytest
 import httpx
+import pytest
 
 
 @pytest.mark.regression
@@ -97,9 +97,7 @@ class TestServiceEndpoints:
     def test_n8n_endpoint_accessible(self, base_url: str, timeout: float) -> None:
         """Test that n8n service is accessible through nginx."""
         try:
-            response = httpx.get(
-                f"{base_url}/n8n/", timeout=timeout, follow_redirects=True
-            )
+            response = httpx.get(f"{base_url}/n8n/", timeout=timeout, follow_redirects=True)
             # n8n should respond (might redirect to login)
             assert response.status_code in [200, 401, 403]
         except httpx.RequestError as e:
@@ -108,9 +106,7 @@ class TestServiceEndpoints:
     def test_rabbitmq_endpoint_accessible(self, base_url: str, timeout: float) -> None:
         """Test that RabbitMQ management UI is accessible through nginx."""
         try:
-            response = httpx.get(
-                f"{base_url}/rabbitmq/", timeout=timeout, follow_redirects=True
-            )
+            response = httpx.get(f"{base_url}/rabbitmq/", timeout=timeout, follow_redirects=True)
             # RabbitMQ should respond (might require auth)
             assert response.status_code in [200, 401]
         except httpx.RequestError as e:
@@ -119,9 +115,7 @@ class TestServiceEndpoints:
     def test_vault_endpoint_accessible(self, base_url: str, timeout: float) -> None:
         """Test that Vault service is accessible through nginx."""
         try:
-            response = httpx.get(
-                f"{base_url}/vault/", timeout=timeout, follow_redirects=True
-            )
+            response = httpx.get(f"{base_url}/vault/", timeout=timeout, follow_redirects=True)
             # Vault should respond
             assert response.status_code in [200, 307, 400]
         except httpx.RequestError as e:
@@ -130,9 +124,7 @@ class TestServiceEndpoints:
     def test_minio_endpoint_accessible(self, base_url: str, timeout: float) -> None:
         """Test that MinIO console is accessible through nginx."""
         try:
-            response = httpx.get(
-                f"{base_url}/minio/", timeout=timeout, follow_redirects=True
-            )
+            response = httpx.get(f"{base_url}/minio/", timeout=timeout, follow_redirects=True)
             # MinIO console should respond
             assert response.status_code in [200, 403]
         except httpx.RequestError as e:
@@ -161,9 +153,7 @@ class TestServiceIntegration:
         """
         return 10.0
 
-    def test_all_critical_services_responding(
-        self, base_url: str, timeout: float
-    ) -> None:
+    def test_all_critical_services_responding(self, base_url: str, timeout: float) -> None:
         """Test that all critical services are responding.
 
         This is a comprehensive test that checks all services at once.
@@ -178,9 +168,7 @@ class TestServiceIntegration:
         results = {}
         for service_name, path in services.items():
             try:
-                response = httpx.get(
-                    f"{base_url}{path}", timeout=timeout, follow_redirects=True
-                )
+                response = httpx.get(f"{base_url}{path}", timeout=timeout, follow_redirects=True)
                 results[service_name] = {
                     "status": "ok",
                     "status_code": response.status_code,
@@ -243,9 +231,7 @@ class TestErrorHandling:
         """
         return 10.0
 
-    def test_nonexistent_route_returns_404(
-        self, base_url: str, timeout: float
-    ) -> None:
+    def test_nonexistent_route_returns_404(self, base_url: str, timeout: float) -> None:
         """Test that nonexistent routes return 404."""
         response = httpx.get(
             f"{base_url}/this-route-definitely-does-not-exist-12345", timeout=timeout
@@ -298,4 +284,3 @@ class TestServiceURLPatterns:
             assert url.startswith(base_url), f"{service} URL should start with base URL"
 
         assert len(expected_patterns) > 0, "Service patterns should be defined"
-

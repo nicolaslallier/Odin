@@ -175,13 +175,13 @@ def _format_logs_for_prompt(logs: list[dict[str, Any]], max_logs: int = 50) -> s
         line = f"[{log.get('id')}] {log.get('timestamp')} | {log.get('level')} | {log.get('service')} | {log.get('message')}"
 
         # Add correlation IDs if present
-        if log.get('request_id'):
+        if log.get("request_id"):
             line += f" | request_id={log['request_id']}"
-        if log.get('task_id'):
+        if log.get("task_id"):
             line += f" | task_id={log['task_id']}"
 
         # Add exception if present
-        if log.get('exception'):
+        if log.get("exception"):
             line += f"\n  Exception: {log['exception'][:200]}..."  # Truncate long exceptions
 
         formatted_lines.append(line)
@@ -215,4 +215,3 @@ def _format_stats(stats: dict[str, Any]) -> str:
             lines.append(f"  {service}: {total} logs")
 
     return "\n".join(lines) if lines else "(No statistics available)"
-

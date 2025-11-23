@@ -166,4 +166,3 @@ async def list_files(
         return FileListResponse(bucket=bucket, files=files)
     except StorageError as e:
         raise HTTPException(status_code=500, detail=e.message)
-

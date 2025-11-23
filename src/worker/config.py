@@ -39,15 +39,18 @@ class WorkerConfig(BaseSettings):
 
     # Worker Settings
     worker_concurrency: int = Field(default=4, alias="CELERY_WORKER_CONCURRENCY")
-    worker_max_tasks_per_child: int = Field(
-        default=1000, alias="CELERY_WORKER_MAX_TASKS_PER_CHILD"
-    )
+    worker_max_tasks_per_child: int = Field(default=1000, alias="CELERY_WORKER_MAX_TASKS_PER_CHILD")
 
     # MinIO Settings (for batch tasks)
     minio_endpoint: str = Field(default="minio:9000", alias="MINIO_ENDPOINT")
     minio_access_key: str = Field(default="minioadmin", alias="MINIO_ACCESS_KEY")
     minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
     minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
+
+    # API Callback Settings
+    api_callback_url: str = Field(
+        default="http://odin-api:8001", alias="API_CALLBACK_URL"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -126,4 +129,3 @@ def get_config() -> WorkerConfig:
         >>> print(f"Broker: {config.broker_url}")
     """
     return WorkerConfig()
-

@@ -117,11 +117,15 @@ def process_webhook(webhook_data: dict[str, Any], signature: str) -> dict[str, A
     with session_scope() as session:
         # Store webhook event in database
         # Create a simple event record (placeholder for actual database model)
-        event_record = type("WebhookEvent", (), {
-            "event_type": event_type,
-            "payload": webhook_data.get("payload", {}),
-            "signature": signature
-        })()
+        event_record = type(
+            "WebhookEvent",
+            (),
+            {
+                "event_type": event_type,
+                "payload": webhook_data.get("payload", {}),
+                "signature": signature,
+            },
+        )()
         session.add(event_record)
         stored = True
 
@@ -212,4 +216,3 @@ def send_notification(self, notification_data: dict[str, Any]) -> dict[str, Any]
             "type": notification_type,
             "error": str(exc),
         }
-

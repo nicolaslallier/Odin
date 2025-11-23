@@ -7,6 +7,7 @@ execution, and result retrieval.
 from __future__ import annotations
 
 import os
+
 os.environ.setdefault("CELERY_BROKER_URL", "memory://")
 os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
 
@@ -30,9 +31,7 @@ class TestTaskExecutionIntegration:
     """Integration tests for task execution."""
 
     @patch("src.worker.tasks.scheduled.httpx")
-    def test_health_check_task_execution(
-        self, mock_httpx: MagicMock, celery_app_eager
-    ) -> None:
+    def test_health_check_task_execution(self, mock_httpx: MagicMock, celery_app_eager) -> None:
         """Test health check task executes end-to-end."""
         # Arrange
         from src.worker.tasks.scheduled import health_check_services
@@ -117,9 +116,7 @@ class TestTaskExecutionIntegration:
             assert result.successful()
 
     @patch("src.worker.tasks.batch.session_scope")
-    def test_task_retry_on_failure(
-        self, mock_session_scope: MagicMock, celery_app_eager
-    ) -> None:
+    def test_task_retry_on_failure(self, mock_session_scope: MagicMock, celery_app_eager) -> None:
         """Test that tasks handle failures gracefully."""
         # Arrange
         from src.worker.tasks.batch import process_bulk_data
@@ -143,7 +140,7 @@ class TestTaskExecutionIntegration:
 
         with patch("src.worker.tasks.batch.session_scope") as mock_session:
             mock_session.return_value.__enter__.return_value = MagicMock()
-            
+
             with patch("src.worker.tasks.events.httpx") as mock_httpx:
                 mock_response = MagicMock()
                 mock_response.status_code = 200
@@ -184,4 +181,3 @@ class TestTaskExecutionIntegration:
         assert result.successful()
         task_result = result.get()
         assert task_result["deleted"] == 10
-

@@ -7,7 +7,9 @@ across all test modules.
 from __future__ import annotations
 
 import os
+
 import pytest
+import logging
 
 # Import all fixtures to make them available
 pytest_plugins = [
@@ -33,3 +35,8 @@ def minio_and_api_test_env_vars():
     os.environ.setdefault("VAULT_TOKEN", "root")
     os.environ.setdefault("OLLAMA_BASE_URL", "http://localhost:11434")
 
+
+def pytest_sessionfinish(session, exitstatus):
+    # Remove all logging handlers to avoid 'I/O operation on closed file' error
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)

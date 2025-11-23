@@ -72,9 +72,9 @@ class TestWebConfig:
 
     def test_config_from_env(self) -> None:
         """Test that configuration can be loaded from environment variables."""
-        from src.web.config import get_config
-
         import os
+
+        from src.web.config import get_config
 
         # Set environment variables
         os.environ["WEB_HOST"] = "192.168.1.1"
@@ -97,9 +97,9 @@ class TestWebConfig:
 
     def test_config_env_defaults_when_not_set(self) -> None:
         """Test that defaults are used when environment variables are not set."""
-        from src.web.config import get_config
-
         import os
+
+        from src.web.config import get_config
 
         # Ensure env vars are not set
         for key in ["WEB_HOST", "WEB_PORT", "WEB_RELOAD", "WEB_LOG_LEVEL"]:
@@ -130,4 +130,3 @@ class TestWebConfig:
 
         assert "localhost" in config_str
         assert "8000" in config_str
-

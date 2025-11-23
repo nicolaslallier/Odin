@@ -23,6 +23,16 @@ class TestTemplateRendering:
         from src.web.app import create_app
 
         app = create_app()
+        # Mount static files for template rendering
+        import os
+
+        from fastapi.staticfiles import StaticFiles
+
+        static_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "web", "static"
+        )
+        os.makedirs(static_dir, exist_ok=True)
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
         return TestClient(app)
 
     def test_base_template_is_used(self, client: TestClient) -> None:
@@ -47,7 +57,7 @@ class TestTemplateRendering:
         response = client.get("/")
 
         content = response.text
-        assert "1.1.0" in content
+        assert "1.5.0" in content
 
     def test_template_renders_features(self, client: TestClient) -> None:
         """Test that template renders feature cards."""
@@ -73,9 +83,9 @@ class TestTemplateRendering:
 
         content = response.text
         # Check for basic accessibility
-        assert 'lang="en"' in content or 'lang=en' in content
+        assert 'lang="en"' in content or "lang=en" in content
         assert "<title>" in content
-        assert 'charset="UTF-8"' in content or 'charset=UTF-8' in content
+        assert 'charset="UTF-8"' in content or "charset=UTF-8" in content
 
     def test_template_is_responsive(self, client: TestClient) -> None:
         """Test that template includes responsive meta tags."""
@@ -90,7 +100,7 @@ class TestTemplateRendering:
         response = client.get("/")
 
         content = response.text
-        assert 'rel="stylesheet"' in content or 'rel=stylesheet' in content
+        assert 'rel="stylesheet"' in content or "rel=stylesheet" in content
         assert "/static/css/style.css" in content
 
     def test_template_context_variables_rendered(self, client: TestClient) -> None:
@@ -101,7 +111,7 @@ class TestTemplateRendering:
         # These should come from the route context
         assert "Welcome to Odin" in content or "Odin" in content
         assert "Hello World" in content or "Hello, World" in content
-        assert "1.1.0" in content
+        assert "1.5.0" in content
 
     def test_no_template_errors_in_response(self, client: TestClient) -> None:
         """Test that there are no template rendering errors."""
@@ -113,4 +123,3 @@ class TestTemplateRendering:
         assert "UndefinedError" not in content
         assert "{{ " not in content  # No unrendered variables
         assert "{% " not in content  # No unrendered tags
-

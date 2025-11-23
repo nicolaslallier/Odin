@@ -41,9 +41,7 @@ class TestAPIPerformance:
         avg_time = elapsed / num_requests
 
         assert all(r.status_code == 200 for r in responses)
-        assert (
-            avg_time < 0.05
-        ), f"Average response time: {avg_time:.3f}s (target: <50ms)"
+        assert avg_time < 0.05, f"Average response time: {avg_time:.3f}s (target: <50ms)"
         print(
             f"\n✓ {num_requests} concurrent requests in {elapsed:.2f}s "
             f"(avg: {avg_time*1000:.1f}ms, throughput: {num_requests/elapsed:.1f} req/s)"
@@ -61,9 +59,7 @@ class TestAPIPerformance:
             elapsed = time.time() - start
 
             assert response.status_code == 200
-            assert (
-                elapsed < 0.2
-            ), f"List with limit={limit} took {elapsed:.3f}s (target: <200ms)"
+            assert elapsed < 0.2, f"List with limit={limit} took {elapsed:.3f}s (target: <200ms)"
 
     @pytest.mark.asyncio
     async def test_cache_performance_improvement(self, client: AsyncClient) -> None:
@@ -111,9 +107,7 @@ class TestAPIPerformance:
         create_elapsed = time.time() - start
 
         successful_creates = sum(
-            1
-            for r in create_responses
-            if not isinstance(r, Exception) and r.status_code == 201
+            1 for r in create_responses if not isinstance(r, Exception) and r.status_code == 201
         )
 
         print(
@@ -202,9 +196,7 @@ class TestAPIPerformance:
         elapsed = time.time() - start
 
         successful = sum(
-            1
-            for r in responses
-            if not isinstance(r, Exception) and r.status_code in [200, 201]
+            1 for r in responses if not isinstance(r, Exception) and r.status_code in [200, 201]
         )
 
         print(
@@ -214,9 +206,7 @@ class TestAPIPerformance:
         )
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_performance_impact(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_circuit_breaker_performance_impact(self, client: AsyncClient) -> None:
         """Test performance impact of circuit breaker."""
         # Make requests that should go through circuit breaker
         num_requests = 50
@@ -264,4 +254,3 @@ class TestAPIPerformance:
         )
 
         assert throughput >= request_rate * 0.8, "Throughput dropped below 80% of target"
-

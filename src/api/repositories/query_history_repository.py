@@ -7,13 +7,23 @@ using the repository pattern to abstract database operations.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import List, Optional
 
-from sqlalchemy import Column, DateTime, Float, Integer, MetaData, String, Table, delete, func, insert, select
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Float,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    delete,
+    func,
+    insert,
+    select,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.exceptions import DatabaseError, ResourceNotFoundError
-
 
 # Define the query_history table
 metadata = MetaData()
@@ -46,13 +56,13 @@ class QueryHistory:
 
     def __init__(
         self,
-        id: Optional[int],
+        id: int | None,
         query_text: str,
         executed_at: datetime,
-        execution_time_ms: Optional[float],
+        execution_time_ms: float | None,
         status: str,
-        row_count: Optional[int],
-        error_message: Optional[str],
+        row_count: int | None,
+        error_message: str | None,
     ) -> None:
         """Initialize query history entity.
 
@@ -159,7 +169,7 @@ class QueryHistoryRepository:
         except Exception as e:
             raise DatabaseError(f"Failed to retrieve query history: {e}")
 
-    async def get_recent(self, limit: int = 50) -> List[QueryHistory]:
+    async def get_recent(self, limit: int = 50) -> list[QueryHistory]:
         """Get recent query history records.
 
         Args:
@@ -195,7 +205,7 @@ class QueryHistoryRepository:
         except Exception as e:
             raise DatabaseError(f"Failed to retrieve recent query history: {e}")
 
-    async def search_queries(self, search_term: str, limit: int = 50) -> List[QueryHistory]:
+    async def search_queries(self, search_term: str, limit: int = 50) -> list[QueryHistory]:
         """Search query history by query text.
 
         Args:
@@ -286,7 +296,9 @@ class QueryHistoryRepository:
         """
         try:
             cutoff_date = datetime.now() - timedelta(days=days)
-            stmt = delete(query_history_table).where(query_history_table.c.executed_at < cutoff_date)
+            stmt = delete(query_history_table).where(
+                query_history_table.c.executed_at < cutoff_date
+            )
             result = await self.session.execute(stmt)
             await self.session.commit()
             return result.rowcount
@@ -306,4 +318,3 @@ async def create_tables(engine) -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
-

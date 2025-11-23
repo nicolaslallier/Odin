@@ -47,9 +47,9 @@ class APIConfig(BaseSettings):
     @property
     def async_postgres_dsn(self) -> str:
         """Get async-compatible PostgreSQL DSN.
-        
+
         Converts standard postgresql:// DSN to use asyncpg driver.
-        
+
         Returns:
             PostgreSQL DSN with async driver (postgresql+asyncpg://)
         """
@@ -102,4 +102,3 @@ def get_config() -> APIConfig:
         >>> print(f"API running on {config.host}:{config.port}")
     """
     return APIConfig()
-

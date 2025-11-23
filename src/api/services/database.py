@@ -6,12 +6,17 @@ with async support for the API service.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from src.api.exceptions import DatabaseError, ServiceUnavailableError
 
@@ -33,7 +38,7 @@ class DatabaseService:
             dsn: PostgreSQL connection string (e.g., postgresql://user:pass@host:5432/db)
         """
         self.dsn = dsn
-        self._engine: Optional[AsyncEngine] = None
+        self._engine: AsyncEngine | None = None
 
     def get_engine(self) -> AsyncEngine:
         """Get or create the async database engine.
@@ -74,7 +79,7 @@ class DatabaseService:
         """
         engine = self.get_engine()
         async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-        
+
         async with async_session() as session:
             try:
                 yield session
@@ -104,4 +109,3 @@ class DatabaseService:
         if self._engine is not None:
             await self._engine.dispose()
             self._engine = None
-

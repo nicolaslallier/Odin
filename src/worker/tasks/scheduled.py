@@ -6,9 +6,10 @@ including health checks, cleanup operations, and report generation.
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Any, Generator
+from typing import Any
 
 import httpx
 from sqlalchemy import create_engine
@@ -132,9 +133,11 @@ def cleanup_old_task_results(days: int = 30) -> dict[str, Any]:
                 "deleted": deleted_count,
                 "days": days,
                 "cutoff_date": cutoff_date.isoformat(),
-                "message": "No old task results to clean up"
-                if deleted_count == 0
-                else f"Deleted {deleted_count} old task results",
+                "message": (
+                    "No old task results to clean up"
+                    if deleted_count == 0
+                    else f"Deleted {deleted_count} old task results"
+                ),
             }
     except Exception as e:
         return {"status": "error", "error": str(e), "days": days}
@@ -180,4 +183,3 @@ def generate_daily_report() -> dict[str, Any]:
             "error": str(e),
             "date": datetime.now().isoformat(),
         }
-

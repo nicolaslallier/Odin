@@ -6,4 +6,3 @@ secret management, and LLM operations.
 """
 
 __version__ = "0.3.0"
-

@@ -112,6 +112,7 @@ async def generate_text_stream(
         HTTPException: If streaming fails
     """
     try:
+
         async def generate() -> bytes:
             async for chunk in ollama.generate_text_streaming(
                 model=request.model,
@@ -124,3 +125,28 @@ async def generate_text_stream(
     except (ServiceUnavailableError, LLMError) as e:
         raise HTTPException(status_code=500, detail=e.message)
 
+
+@router.post("/pull/{model}")
+async def pull_model(
+    model: str,
+    ollama: OllamaService = Depends(get_ollama_service),
+) -> dict[str, str]:
+    """Pull/download a model from Ollama registry.
+
+    Args:
+        model: Name of the model to pull
+        ollama: Ollama service instance
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTPException: If pull fails
+    """
+    try:
+        await ollama.pull_model(model)
+        return {"message": f"Model {model} pulled successfully"}
+    except ServiceUnavailableError as e:
+        raise HTTPException(status_code=503, detail=e.message)
+    except LLMError as e:
+        raise HTTPException(status_code=500, detail=e.message)

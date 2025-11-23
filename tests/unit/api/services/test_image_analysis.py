@@ -7,8 +7,6 @@ coverage of the full workflow: storage, database persistence, and LLM analysis.
 from __future__ import annotations
 
 import time
-from datetime import datetime
-from io import BytesIO
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -42,17 +40,17 @@ def mock_database() -> Mock:
         Mock database service
     """
     database = Mock()
-    
+
     # Mock get_session context manager
     mock_session = AsyncMock()
     mock_session.commit = AsyncMock()
     mock_session.rollback = AsyncMock()
-    
+
     mock_cm = AsyncMock()
     mock_cm.__aenter__.return_value = mock_session
     mock_cm.__aexit__.return_value = None
     database.get_session = Mock(return_value=mock_cm)
-    
+
     return database
 
 
@@ -76,7 +74,7 @@ def mock_repository() -> Mock:
         Mock repository
     """
     repository = Mock()
-    
+
     sample_analysis = ImageAnalysis(
         id=1,
         filename="test.jpg",
@@ -87,13 +85,13 @@ def mock_repository() -> Mock:
         llm_description="A beautiful sunset",
         model_used="llava:latest",
     )
-    
+
     repository.create = AsyncMock(return_value=sample_analysis)
     repository.get_by_id = AsyncMock(return_value=sample_analysis)
     repository.get_all = AsyncMock(return_value=[sample_analysis])
     repository.delete = AsyncMock()
     repository.count = AsyncMock(return_value=1)
-    
+
     return repository
 
 
@@ -137,7 +135,7 @@ class TestImageAnalysisServiceInit:
             image_bucket="images",
             max_size_mb=10,
         )
-        
+
         assert service.storage == mock_storage
         assert service.database == mock_database
         assert service.ollama == mock_ollama
@@ -160,7 +158,7 @@ class TestAnalyzeAndStore:
         file_data = b"fake_image_data"
         content_type = "image/jpeg"
         prompt = "Describe this image"
-        
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
@@ -172,18 +170,18 @@ class TestAnalyzeAndStore:
                 content_type=content_type,
                 prompt=prompt,
             )
-        
+
         # Assert
         assert result.filename == "test.jpg"
         assert result.llm_description == "A beautiful sunset"
         assert result.model_used == "llava:latest"
-        
+
         # Verify storage was called
         image_analysis_service.storage.upload_file.assert_called_once()
-        
+
         # Verify Ollama was called
         image_analysis_service.ollama.analyze_image.assert_called_once()
-        
+
         # Verify repository create was called
         mock_repository.create.assert_called_once()
 
@@ -197,7 +195,7 @@ class TestAnalyzeAndStore:
         content_type = "image/jpeg"
         prompt = "Describe this image"
         custom_model = "bakllava:latest"
-        
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
@@ -209,7 +207,7 @@ class TestAnalyzeAndStore:
                 prompt=prompt,
                 model=custom_model,
             )
-        
+
         # Verify Ollama was called with custom model
         call_args = image_analysis_service.ollama.analyze_image.call_args
         assert call_args[1]["model"] == custom_model
@@ -223,7 +221,7 @@ class TestAnalyzeAndStore:
         # Create 11MB of data (exceeds 10MB limit)
         file_data = b"x" * (11 * 1024 * 1024)
         content_type = "image/jpeg"
-        
+
         with pytest.raises(ValidationError, match="exceeds maximum size"):
             await image_analysis_service.analyze_and_store(
                 filename=filename,
@@ -239,7 +237,7 @@ class TestAnalyzeAndStore:
         filename = "test.txt"
         file_data = b"not an image"
         content_type = "text/plain"
-        
+
         with pytest.raises(ValidationError, match="Invalid image content type"):
             await image_analysis_service.analyze_and_store(
                 filename=filename,
@@ -255,12 +253,10 @@ class TestAnalyzeAndStore:
         filename = "test.jpg"
         file_data = b"fake_image_data"
         content_type = "image/jpeg"
-        
+
         # Make storage fail
-        image_analysis_service.storage.upload_file.side_effect = StorageError(
-            "Upload failed"
-        )
-        
+        image_analysis_service.storage.upload_file.side_effect = StorageError("Upload failed")
+
         with pytest.raises(StorageError, match="Upload failed"):
             await image_analysis_service.analyze_and_store(
                 filename=filename,
@@ -276,23 +272,20 @@ class TestAnalyzeAndStore:
         filename = "test.jpg"
         file_data = b"fake_image_data"
         content_type = "image/jpeg"
-        
+
         # Make LLM fail
-        image_analysis_service.ollama.analyze_image.side_effect = LLMError(
-            "Model not found"
-        )
-        
+        image_analysis_service.ollama.analyze_image.side_effect = LLMError("Model not found")
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
-        ):
-            with pytest.raises(LLMError, match="Model not found"):
-                await image_analysis_service.analyze_and_store(
-                    filename=filename,
-                    file_data=file_data,
-                    content_type=content_type,
-                )
-        
+        ), pytest.raises(LLMError, match="Model not found"):
+            await image_analysis_service.analyze_and_store(
+                filename=filename,
+                file_data=file_data,
+                content_type=content_type,
+            )
+
         # Verify storage delete was called for cleanup
         image_analysis_service.storage.delete_file.assert_called_once()
 
@@ -304,21 +297,20 @@ class TestAnalyzeAndStore:
         filename = "test.jpg"
         file_data = b"fake_image_data"
         content_type = "image/jpeg"
-        
+
         # Make database fail
         mock_repository.create.side_effect = DatabaseError("DB connection lost")
-        
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
-        ):
-            with pytest.raises(DatabaseError, match="DB connection lost"):
-                await image_analysis_service.analyze_and_store(
-                    filename=filename,
-                    file_data=file_data,
-                    content_type=content_type,
-                )
-        
+        ), pytest.raises(DatabaseError, match="DB connection lost"):
+            await image_analysis_service.analyze_and_store(
+                filename=filename,
+                file_data=file_data,
+                content_type=content_type,
+            )
+
         # Verify storage delete was called for cleanup
         image_analysis_service.storage.delete_file.assert_called_once()
 
@@ -330,7 +322,7 @@ class TestAnalyzeAndStore:
         filename = "test.jpg"
         file_data = b"fake_image_data"
         content_type = "image/jpeg"
-        
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
@@ -341,16 +333,16 @@ class TestAnalyzeAndStore:
                 file_data=file_data,
                 content_type=content_type,
             )
-            
+
             # Small delay to ensure different timestamp
             time.sleep(0.01)
-            
+
             result2 = await image_analysis_service.analyze_and_store(
                 filename=filename,
                 file_data=file_data,
                 content_type=content_type,
             )
-        
+
         # Object keys should be different (contain timestamps)
         # Note: This is a simplified check since we're mocking
         assert mock_repository.create.call_count == 2
@@ -370,7 +362,7 @@ class TestGetAnalysis:
             return_value=mock_repository,
         ):
             result = await image_analysis_service.get_analysis(1)
-        
+
         assert result.id == 1
         assert result.filename == "test.jpg"
         mock_repository.get_by_id.assert_called_once_with(1)
@@ -381,15 +373,14 @@ class TestGetAnalysis:
     ) -> None:
         """Test get_analysis with non-existent ID."""
         from src.api.exceptions import ResourceNotFoundError
-        
+
         mock_repository.get_by_id.side_effect = ResourceNotFoundError("Not found")
-        
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
-        ):
-            with pytest.raises(ResourceNotFoundError):
-                await image_analysis_service.get_analysis(999)
+        ), pytest.raises(ResourceNotFoundError):
+            await image_analysis_service.get_analysis(999)
 
 
 @pytest.mark.unit
@@ -406,7 +397,7 @@ class TestListAnalyses:
             return_value=mock_repository,
         ):
             result = await image_analysis_service.list_analyses()
-        
+
         assert len(result) == 1
         assert result[0].filename == "test.jpg"
         mock_repository.get_all.assert_called_once()
@@ -417,13 +408,13 @@ class TestListAnalyses:
     ) -> None:
         """Test listing when no analyses exist."""
         mock_repository.get_all.return_value = []
-        
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
         ):
             result = await image_analysis_service.list_analyses()
-        
+
         assert len(result) == 0
         assert isinstance(result, list)
 
@@ -442,13 +433,13 @@ class TestDeleteAnalysis:
             return_value=mock_repository,
         ):
             await image_analysis_service.delete_analysis(1)
-        
+
         # Verify get_by_id was called (to get object info)
         mock_repository.get_by_id.assert_called_once_with(1)
-        
+
         # Verify storage delete was called
         image_analysis_service.storage.delete_file.assert_called_once()
-        
+
         # Verify repository delete was called
         mock_repository.delete.assert_called_once_with(1)
 
@@ -458,15 +449,14 @@ class TestDeleteAnalysis:
     ) -> None:
         """Test delete with non-existent ID."""
         from src.api.exceptions import ResourceNotFoundError
-        
+
         mock_repository.get_by_id.side_effect = ResourceNotFoundError("Not found")
-        
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
-        ):
-            with pytest.raises(ResourceNotFoundError):
-                await image_analysis_service.delete_analysis(999)
+        ), pytest.raises(ResourceNotFoundError):
+            await image_analysis_service.delete_analysis(999)
 
     @pytest.mark.asyncio
     async def test_delete_analysis_storage_error_continues(
@@ -474,17 +464,15 @@ class TestDeleteAnalysis:
     ) -> None:
         """Test that DB deletion continues even if storage deletion fails."""
         # Make storage delete fail
-        image_analysis_service.storage.delete_file.side_effect = StorageError(
-            "Delete failed"
-        )
-        
+        image_analysis_service.storage.delete_file.side_effect = StorageError("Delete failed")
+
         with patch(
             "src.api.services.image_analysis.ImageRepository",
             return_value=mock_repository,
         ):
             # Should not raise, continues to DB deletion
             await image_analysis_service.delete_analysis(1)
-        
+
         # Verify repository delete was still called
         mock_repository.delete.assert_called_once_with(1)
 
@@ -493,9 +481,7 @@ class TestDeleteAnalysis:
 class TestContentTypeValidation:
     """Test cases for content type validation."""
 
-    def test_supported_image_formats(
-        self, image_analysis_service: ImageAnalysisService
-    ) -> None:
+    def test_supported_image_formats(self, image_analysis_service: ImageAnalysisService) -> None:
         """Test that all supported image formats are accepted."""
         supported_types = [
             "image/jpeg",
@@ -503,15 +489,13 @@ class TestContentTypeValidation:
             "image/webp",
             "image/gif",
         ]
-        
+
         for content_type in supported_types:
             # Should not raise
             is_valid = content_type.startswith("image/")
             assert is_valid is True
 
-    def test_unsupported_formats(
-        self, image_analysis_service: ImageAnalysisService
-    ) -> None:
+    def test_unsupported_formats(self, image_analysis_service: ImageAnalysisService) -> None:
         """Test that unsupported formats are rejected."""
         unsupported_types = [
             "text/plain",
@@ -519,7 +503,7 @@ class TestContentTypeValidation:
             "video/mp4",
             "application/octet-stream",
         ]
-        
+
         for content_type in unsupported_types:
             is_valid = content_type.startswith("image/")
             assert is_valid is False
@@ -533,6 +517,7 @@ def test_generate_object_key_no_extension(image_analysis_service: ImageAnalysisS
         assert key.startswith("noextfilename_")
         assert key.endswith("789000")
 
+
 def test_generate_object_key_with_extension(image_analysis_service: ImageAnalysisService) -> None:
     """Test object key generation for filename with extension."""
     filename = "file.png"
@@ -540,8 +525,11 @@ def test_generate_object_key_with_extension(image_analysis_service: ImageAnalysi
         key = image_analysis_service._generate_object_key(filename)
         assert key.startswith("file_") and key.endswith(".png")
 
+
 @pytest.mark.asyncio
-async def test_analyze_and_store_creates_bucket(image_analysis_service: ImageAnalysisService, mock_repository: Mock) -> None:
+async def test_analyze_and_store_creates_bucket(
+    image_analysis_service: ImageAnalysisService, mock_repository: Mock
+) -> None:
     """Test that bucket is created if it doesn't exist."""
     # Arrange
     filename = "bucket_test.jpg"
@@ -556,8 +544,11 @@ async def test_analyze_and_store_creates_bucket(image_analysis_service: ImageAna
         )
     image_analysis_service.storage.create_bucket.assert_called_once()
 
+
 @pytest.mark.asyncio
-async def test_analyze_and_store_storage_error_on_cleanup(image_analysis_service: ImageAnalysisService, mock_repository: Mock) -> None:
+async def test_analyze_and_store_storage_error_on_cleanup(
+    image_analysis_service: ImageAnalysisService, mock_repository: Mock
+) -> None:
     """Test that StorageError during cleanup is swallowed and original error is raised."""
     # Trigger LLM failure AND make storage.delete_file raise
     filename = "fail.jpg"
@@ -573,4 +564,3 @@ async def test_analyze_and_store_storage_error_on_cleanup(image_analysis_service
                 content_type=content_type,
             )  # Should swallow StorageError and raise the original
     image_analysis_service.storage.delete_file.assert_called_once()
-

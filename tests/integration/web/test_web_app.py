@@ -23,14 +23,32 @@ class TestWebApplicationIntegration:
         from src.web.app import create_app
 
         app = create_app()
+        # Mount static files for web app integration tests
+        import os
+
+        from fastapi.staticfiles import StaticFiles
+
+        static_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "web", "static"
+        )
+        os.makedirs(static_dir, exist_ok=True)
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
         return TestClient(app)
 
     def test_application_starts_successfully(self, client: TestClient) -> None:
         """Test that the application starts and responds."""
-        response = client.get("/health")
+        # Check that the web dashboard (HTML) renders
+        resp_html = client.get("/health")
+        assert resp_html.status_code == 200
+        assert "Odin" in resp_html.text or "Health" in resp_html.text    # minimal HTML content check
 
-        assert response.status_code == 200
-        assert response.json()["status"] == "healthy"
+        # Check that health API returns JSON
+        resp_api = client.get("/health/api")
+        assert resp_api.status_code == 200
+        assert resp_api.headers["content-type"].startswith("application/json")
+        data = resp_api.json()
+        assert "infrastructure" in data
+        assert "application" in data
 
     def test_home_page_renders_complete_html(self, client: TestClient) -> None:
         """Test that home page renders with complete HTML structure."""
@@ -62,7 +80,7 @@ class TestWebApplicationIntegration:
 
         content = response.text
         assert "footer" in content.lower()
-        assert "0.4.2" in content or "Version" in content
+        assert "1.5.0" in content or "Version" in content
 
     def test_static_css_is_referenced(self, client: TestClient) -> None:
         """Test that CSS file is properly referenced."""
@@ -115,6 +133,5 @@ class TestWebApplicationIntegration:
         app = create_app()
 
         assert app.title == "Odin Web Interface"
-        assert app.version == "0.4.2"
+        assert app.version == "1.6.0"
         assert app.description is not None
-

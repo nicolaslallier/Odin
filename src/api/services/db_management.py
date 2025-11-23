@@ -11,7 +11,7 @@ import io
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 
 import sqlparse
 from sqlalchemy import text
@@ -48,7 +48,7 @@ class TableSchema:
     """
 
     table_name: str
-    columns: List[dict[str, Any]]
+    columns: list[dict[str, Any]]
 
 
 @dataclass
@@ -66,10 +66,10 @@ class QueryResult:
 
     success: bool
     row_count: int
-    columns: List[str]
-    rows: List[List[Any]]
-    error: Optional[str] = None
-    execution_time_ms: Optional[float] = None
+    columns: list[str]
+    rows: list[list[Any]]
+    error: str | None = None
+    execution_time_ms: float | None = None
 
 
 @dataclass
@@ -102,7 +102,7 @@ class DatabaseManagementService:
         """
         self.db_service = db_service
 
-    async def get_all_tables(self) -> List[TableInfo]:
+    async def get_all_tables(self) -> list[TableInfo]:
         """Get list of all tables in the database with metadata.
 
         Returns:
@@ -111,21 +111,23 @@ class DatabaseManagementService:
         Raises:
             DatabaseError: If table retrieval fails
         """
-        query = text("""
-            SELECT 
+        query = text(
+            """
+            SELECT
                 schemaname,
                 relname as tablename,
                 n_live_tup as row_count,
                 pg_total_relation_size(schemaname||'.'||relname) as size_bytes
             FROM pg_stat_user_tables
             ORDER BY schemaname, relname
-        """)
+        """
+        )
 
         try:
             async with self.db_service.get_session() as session:
                 result = await session.execute(query)
                 rows = result.fetchall()
-                
+
                 return [
                     TableInfo(
                         schema_name=row[0],
@@ -150,17 +152,18 @@ class DatabaseManagementService:
         Raises:
             DatabaseError: If table not found or schema retrieval fails
         """
-        query = text("""
-            SELECT 
+        query = text(
+            """
+            SELECT
                 column_name,
                 data_type,
                 is_nullable::boolean as is_nullable,
                 (
                     SELECT string_agg(constraint_type, ', ')
                     FROM information_schema.table_constraints tc
-                    JOIN information_schema.key_column_usage kcu 
+                    JOIN information_schema.key_column_usage kcu
                         ON tc.constraint_name = kcu.constraint_name
-                    WHERE kcu.table_name = c.table_name 
+                    WHERE kcu.table_name = c.table_name
                         AND kcu.column_name = c.column_name
                 ) as constraints,
                 column_default
@@ -168,16 +171,17 @@ class DatabaseManagementService:
             WHERE table_name = :table_name
                 AND table_schema = 'public'
             ORDER BY ordinal_position
-        """)
+        """
+        )
 
         try:
             async with self.db_service.get_session() as session:
                 result = await session.execute(query, {"table_name": table_name})
                 rows = result.fetchall()
-                
+
                 if not rows:
                     raise DatabaseError(f"Table '{table_name}' not found or has no columns")
-                
+
                 columns = [
                     {
                         "name": row[0],
@@ -188,7 +192,7 @@ class DatabaseManagementService:
                     }
                     for row in rows
                 ]
-                
+
                 return TableSchema(table_name=table_name, columns=columns)
         except DatabaseError:
             raise
@@ -228,7 +232,7 @@ class DatabaseManagementService:
 
             # Get the first statement
             statement = parsed[0]
-            
+
             # Determine query type
             query_type = statement.get_type()
             if query_type is None:
@@ -269,7 +273,7 @@ class DatabaseManagementService:
         """
         # Validate query
         validation = self.validate_sql(sql)
-        
+
         if not validation["is_valid"]:
             return QueryResult(
                 success=False,
@@ -287,16 +291,16 @@ class DatabaseManagementService:
             )
 
         start_time = datetime.now()
-        
+
         try:
             async with self.db_service.get_session() as session:
                 result = await session.execute(text(sql))
-                
+
                 # For SELECT queries, fetch results
                 if validation["query_type"] == "SELECT":
                     rows = result.fetchall()
                     columns = list(result.keys())
-                    
+
                     # Convert rows to list of lists, handling binary data
                     rows_list = []
                     for row in rows:
@@ -311,9 +315,9 @@ class DatabaseManagementService:
                             else:
                                 row_data.append(value)
                         rows_list.append(row_data)
-                    
+
                     execution_time = (datetime.now() - start_time).total_seconds() * 1000
-                    
+
                     return QueryResult(
                         success=True,
                         row_count=len(rows),
@@ -325,7 +329,7 @@ class DatabaseManagementService:
                     # For INSERT, UPDATE, DELETE, etc.
                     row_count = result.rowcount
                     execution_time = (datetime.now() - start_time).total_seconds() * 1000
-                    
+
                     return QueryResult(
                         success=True,
                         row_count=row_count,
@@ -335,7 +339,7 @@ class DatabaseManagementService:
                     )
         except (SQLAlchemyError, TimeoutError) as e:
             execution_time = (datetime.now() - start_time).total_seconds() * 1000
-            
+
             return QueryResult(
                 success=False,
                 row_count=0,
@@ -350,8 +354,8 @@ class DatabaseManagementService:
         table_name: str,
         page: int = 1,
         page_size: int = 50,
-        search: Optional[str] = None,
-        order_by: Optional[str] = None,
+        search: str | None = None,
+        order_by: str | None = None,
     ) -> QueryResult:
         """Get paginated data from a table.
 
@@ -369,39 +373,36 @@ class DatabaseManagementService:
             DatabaseError: If query fails
         """
         offset = (page - 1) * page_size
-        
+
         # Build query
         query_parts = [f"SELECT * FROM {table_name}"]
-        
+
         # Add search condition if provided
         if search:
             # This is a simple implementation - in production, you'd want to
             # search specific columns based on schema
             query_parts.append(f"WHERE CAST({table_name} AS TEXT) ILIKE :search")
-        
+
         # Add ordering
         if order_by:
             # Sanitize order_by to prevent SQL injection
             # In production, validate against actual column names
             query_parts.append(f"ORDER BY {order_by}")
-        
+
         query_parts.append(f"LIMIT {page_size} OFFSET {offset}")
-        
+
         query_str = " ".join(query_parts)
-        
+
         try:
             async with self.db_service.get_session() as session:
                 if search:
-                    result = await session.execute(
-                        text(query_str),
-                        {"search": f"%{search}%"}
-                    )
+                    result = await session.execute(text(query_str), {"search": f"%{search}%"})
                 else:
                     result = await session.execute(text(query_str))
-                
+
                 rows = result.fetchall()
                 columns = list(result.keys())
-                
+
                 # Convert rows to list, handling binary data
                 rows_list = []
                 for row in rows:
@@ -416,7 +417,7 @@ class DatabaseManagementService:
                         else:
                             row_data.append(value)
                     rows_list.append(row_data)
-                
+
                 return QueryResult(
                     success=True,
                     row_count=len(rows),
@@ -447,21 +448,23 @@ class DatabaseManagementService:
                 size_query = text("SELECT pg_database_size(current_database())")
                 size_result = await session.execute(size_query)
                 database_size = size_result.scalar() or 0
-                
+
                 # Get version
                 version_query = text("SELECT version()")
                 version_result = await session.execute(version_query)
                 version = version_result.scalar() or "Unknown"
-                
+
                 # Get connection count
-                conn_query = text("""
-                    SELECT count(*) 
-                    FROM pg_stat_activity 
+                conn_query = text(
+                    """
+                    SELECT count(*)
+                    FROM pg_stat_activity
                     WHERE datname = current_database()
-                """)
+                """
+                )
                 conn_result = await session.execute(conn_query)
                 connection_count = conn_result.scalar() or 0
-                
+
                 return DatabaseStats(
                     database_size_bytes=database_size,
                     version=version,
@@ -495,7 +498,7 @@ class DatabaseManagementService:
                 result = await session.execute(text(query))
                 rows = result.fetchall()
                 columns = list(result.keys())
-                
+
                 if format == "csv":
                     output = io.StringIO()
                     writer = csv.writer(output)
@@ -507,4 +510,3 @@ class DatabaseManagementService:
                     return json.dumps(data, indent=2, default=str)
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to export data: {e}")
-

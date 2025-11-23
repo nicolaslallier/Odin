@@ -66,14 +66,14 @@ async def api_proxy(path: str, request: Request) -> Response:
         Proxied response from API service
     """
     config = request.app.state.config
-    
+
     # Build target URL - path already includes /api/v1/logs
     target_url = f"{config.api_base_url}/{path}"
-    
+
     # Forward query parameters
     if request.url.query:
         target_url = f"{target_url}?{request.url.query}"
-    
+
     # Forward request to API
     async with httpx.AsyncClient() as client:
         try:
@@ -92,7 +92,7 @@ async def api_proxy(path: str, request: Request) -> Response:
                     {"error": f"Method {request.method} not supported"},
                     status_code=405,
                 )
-            
+
             # Return proxied response
             return Response(
                 content=response.content,
@@ -109,4 +109,3 @@ async def api_proxy(path: str, request: Request) -> Response:
                 {"error": f"Proxy error: {str(e)}"},
                 status_code=500,
             )
-

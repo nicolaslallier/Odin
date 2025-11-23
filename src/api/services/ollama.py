@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Any, AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import httpx
 
@@ -32,7 +33,7 @@ class OllamaService:
             base_url: Ollama API base URL (e.g., http://ollama:11434)
         """
         self.base_url = base_url
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     async def initialize(self) -> None:
         """Initialize the HTTP client for connection pooling.
@@ -74,7 +75,7 @@ class OllamaService:
             List of model information dictionaries with fields:
             - name: Model name
             - size: Model size in bytes (optional)
-            - digest: Model digest/hash (optional)  
+            - digest: Model digest/hash (optional)
             - modified_at: Last modification time (optional)
 
         Raises:
@@ -86,7 +87,7 @@ class OllamaService:
             response = await client.get(f"{self.base_url}/api/tags")
             response.raise_for_status()
             data = response.json()
-            
+
             # Extract and normalize model information
             models = data.get("models", [])
             normalized_models = []
@@ -98,16 +99,14 @@ class OllamaService:
                     "modified_at": model.get("modified_at"),
                 }
                 normalized_models.append(normalized_model)
-            
+
             return normalized_models
         except httpx.HTTPStatusError as e:
             raise LLMError(f"Failed to list models: {e}", {"status_code": e.response.status_code})
         except httpx.RequestError as e:
             raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
 
-    async def generate_text(
-        self, model: str, prompt: str, system: Optional[str] = None
-    ) -> str:
+    async def generate_text(self, model: str, prompt: str, system: str | None = None) -> str:
         """Generate text using a model.
 
         Args:
@@ -129,10 +128,10 @@ class OllamaService:
                 "prompt": prompt,
                 "stream": False,
             }
-            
+
             if system:
                 payload["system"] = system
-            
+
             response = await client.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
@@ -149,7 +148,7 @@ class OllamaService:
             raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
 
     async def generate_text_streaming(
-        self, model: str, prompt: str, system: Optional[str] = None
+        self, model: str, prompt: str, system: str | None = None
     ) -> AsyncGenerator[str, None]:
         """Generate text with streaming response.
 
@@ -172,10 +171,10 @@ class OllamaService:
                 "prompt": prompt,
                 "stream": True,
             }
-            
+
             if system:
                 payload["system"] = system
-            
+
             async with client.stream(
                 "POST",
                 f"{self.base_url}/api/generate",
@@ -255,7 +254,7 @@ class OllamaService:
             raise ServiceUnavailableError(f"Ollama service unreachable: {e}")
 
     async def analyze_image(
-        self, model: str, prompt: str, image_data: bytes, system: Optional[str] = None
+        self, model: str, prompt: str, image_data: bytes, system: str | None = None
     ) -> str:
         """Analyze an image using a vision-capable model.
 
@@ -274,20 +273,20 @@ class OllamaService:
         """
         try:
             client = self._get_client()
-            
+
             # Encode image as base64
             image_base64 = base64.b64encode(image_data).decode("utf-8")
-            
+
             payload: dict[str, Any] = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
                 "images": [image_base64],
             }
-            
+
             if system:
                 payload["system"] = system
-            
+
             response = await client.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
@@ -325,4 +324,3 @@ class OllamaService:
             return response.status_code == 200
         except Exception:
             return False
-

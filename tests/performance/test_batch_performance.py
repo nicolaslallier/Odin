@@ -7,7 +7,6 @@ throughput, memory usage, and scalability.
 from __future__ import annotations
 
 import time
-from typing import Any
 
 import pytest
 
@@ -50,15 +49,12 @@ class TestBatchPerformance:
 
         for batch_size in batch_sizes:
             files = [
-                {"filename": f"file-{i}.txt", "content": f"content-{i}"}
-                for i in range(batch_size)
+                {"filename": f"file-{i}.txt", "content": f"content-{i}"} for i in range(batch_size)
             ]
 
             start = time.time()
             try:
-                result = process_file_batch.apply(args=[files, "test-bucket"]).get(
-                    timeout=60
-                )
+                result = process_file_batch.apply(args=[files, "test-bucket"]).get(timeout=60)
                 elapsed = time.time() - start
 
                 throughput = batch_size / elapsed
@@ -135,6 +131,7 @@ class TestBatchPerformance:
     def test_large_batch_memory_efficiency(self) -> None:
         """Test memory efficiency with large batches."""
         import psutil
+
         from src.worker.tasks.batch import process_bulk_data
 
         batch_size = 1000
@@ -160,9 +157,7 @@ class TestBatchPerformance:
         )
 
         # Memory increase should be reasonable (< 100MB for 1000 items)
-        assert (
-            memory_increase < 100
-        ), f"Memory increase too high: {memory_increase:.1f}MB"
+        assert memory_increase < 100, f"Memory increase too high: {memory_increase:.1f}MB"
 
     def test_batch_processing_with_failures(self) -> None:
         """Test performance when some batch items fail."""
@@ -171,8 +166,7 @@ class TestBatchPerformance:
         batch_size = 100
         # Mix of valid and potentially problematic data
         data_items = [
-            {"id": i, "value": f"item-{i}" if i % 10 != 0 else None}
-            for i in range(batch_size)
+            {"id": i, "value": f"item-{i}" if i % 10 != 0 else None} for i in range(batch_size)
         ]
 
         start = time.time()
@@ -207,10 +201,7 @@ class TestBatchPerformance:
 
             throughput = size / elapsed
 
-            print(
-                f"\n✓ Size {size}: {elapsed:.2f}s "
-                f"(throughput: {throughput:.1f} items/s)"
-            )
+            print(f"\n✓ Size {size}: {elapsed:.2f}s " f"(throughput: {throughput:.1f} items/s)")
 
         # Check if scaling is roughly linear (allowing 2x variance)
         for i in range(1, len(sizes)):
@@ -246,4 +237,3 @@ class TestBatchPerformance:
 
         # For comparison: if we had chunk-based commits, test those too
         # (This would require modifying the task to support chunk size parameter)
-

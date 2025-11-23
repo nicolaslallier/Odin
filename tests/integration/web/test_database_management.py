@@ -23,6 +23,16 @@ def client() -> TestClient:
         TestClient for making requests
     """
     app = create_app()
+    # Mount static files for integration tests
+    import os
+
+    from fastapi.staticfiles import StaticFiles
+
+    static_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "src", "web", "static"
+    )
+    os.makedirs(static_dir, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
     return TestClient(app)
 
 
@@ -65,9 +75,7 @@ class TestDatabaseAPIIntegration:
     """Integration tests for database API endpoints."""
 
     @patch("src.web.routes.database.get_db_management_service")
-    def test_get_tables_api(
-        self, mock_get_service: MagicMock, client: TestClient
-    ) -> None:
+    def test_get_tables_api(self, mock_get_service: MagicMock, client: TestClient) -> None:
         """Test tables API endpoint returns data."""
         # Arrange
         from src.api.services.db_management import TableInfo
@@ -95,9 +103,7 @@ class TestDatabaseAPIIntegration:
         assert data[0]["table_name"] == "test_table"
 
     @patch("src.web.routes.database.get_db_management_service")
-    def test_execute_query_api(
-        self, mock_get_service: MagicMock, client: TestClient
-    ) -> None:
+    def test_execute_query_api(self, mock_get_service: MagicMock, client: TestClient) -> None:
         """Test query execution API endpoint."""
         # Arrange
         from src.api.services.db_management import QueryResult
@@ -134,9 +140,7 @@ class TestDatabaseAPIIntegration:
         assert data["row_count"] == 2
 
     @patch("src.web.routes.database.get_db_management_service")
-    def test_get_stats_api(
-        self, mock_get_service: MagicMock, client: TestClient
-    ) -> None:
+    def test_get_stats_api(self, mock_get_service: MagicMock, client: TestClient) -> None:
         """Test database statistics API endpoint."""
         # Arrange
         from src.api.services.db_management import DatabaseStats
@@ -207,7 +211,6 @@ class TestQueryHistoryIntegration:
     ) -> None:
         """Test retrieving query history."""
         # Arrange
-        from src.api.repositories.query_history_repository import QueryHistory
 
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -242,46 +245,33 @@ class TestExportIntegration:
     """Integration tests for data export functionality."""
 
     @patch("src.web.routes.database.get_db_management_service")
-    def test_export_csv(
-        self, mock_get_service: MagicMock, client: TestClient
-    ) -> None:
+    def test_export_csv(self, mock_get_service: MagicMock, client: TestClient) -> None:
         """Test CSV export functionality."""
         # Arrange
         mock_service = MagicMock()
-        mock_service.export_data = AsyncMock(
-            return_value="id,name\n1,John\n2,Jane\n"
-        )
+        mock_service.export_data = AsyncMock(return_value="id,name\n1,John\n2,Jane\n")
         mock_get_service.return_value = mock_service
 
         # Act
-        response = client.get(
-            "/database/export?query=SELECT * FROM users&format=csv"
-        )
+        response = client.get("/database/export?query=SELECT * FROM users&format=csv")
 
         # Assert
         assert response.status_code == 200
-        assert response.headers["content-type"] == "text/csv"
+        assert "text/csv" in response.headers["content-type"]
         assert "id,name" in response.text
 
     @patch("src.web.routes.database.get_db_management_service")
-    def test_export_json(
-        self, mock_get_service: MagicMock, client: TestClient
-    ) -> None:
+    def test_export_json(self, mock_get_service: MagicMock, client: TestClient) -> None:
         """Test JSON export functionality."""
         # Arrange
         mock_service = MagicMock()
-        mock_service.export_data = AsyncMock(
-            return_value='[{"id": 1, "name": "John"}]'
-        )
+        mock_service.export_data = AsyncMock(return_value='[{"id": 1, "name": "John"}]')
         mock_get_service.return_value = mock_service
 
         # Act
-        response = client.get(
-            "/database/export?query=SELECT * FROM users&format=json"
-        )
+        response = client.get("/database/export?query=SELECT * FROM users&format=json")
 
         # Assert
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/json"
         assert '"id"' in response.text or '"id":' in response.text
-

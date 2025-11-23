@@ -8,14 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sys
 import threading
 import time
 from datetime import datetime
 from queue import Queue
-from typing import Any, Optional
-from uuid import UUID
+from typing import Any
 
 try:
     import orjson as json
@@ -23,7 +21,7 @@ except ImportError:
     import json  # type: ignore
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 
 class StructuredFormatter(logging.Formatter):
@@ -69,7 +67,11 @@ class StructuredFormatter(logging.Formatter):
 
         try:
             if hasattr(json, "dumps"):
-                return json.dumps(log_data).decode("utf-8") if isinstance(json.dumps(log_data), bytes) else json.dumps(log_data)
+                return (
+                    json.dumps(log_data).decode("utf-8")
+                    if isinstance(json.dumps(log_data), bytes)
+                    else json.dumps(log_data)
+                )
             return json.dumps(log_data)
         except Exception:
             # Fallback to simple format if JSON serialization fails
@@ -209,7 +211,7 @@ class DatabaseLogHandler(logging.Handler):
         self.min_level = min_level
 
         self._buffer: Queue[dict[str, Any]] = Queue()
-        self._engine: Optional[AsyncEngine] = None
+        self._engine: AsyncEngine | None = None
         self._shutdown = threading.Event()
         self._flush_thread = threading.Thread(target=self._flush_worker, daemon=True)
         self._flush_thread.start()
@@ -316,7 +318,10 @@ class DatabaseLogHandler(logging.Handler):
         try:
             asyncio.run(self._insert_logs(records))
         except Exception as e:
-            # Log to stderr if database insert fails
+            # Suppress shutdown/atexit errors during interpreter exit
+            msg = str(e)
+            if ("atexit" in msg or "after shutdown" in msg or "cannot schedule new futures" in msg or "no event loop" in msg):
+                return
             print(f"Failed to insert logs to database: {e}", file=sys.stderr)
 
     async def _insert_logs(self, records: list[dict[str, Any]]) -> None:
@@ -460,4 +465,3 @@ def configure_logging_with_db(
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
-

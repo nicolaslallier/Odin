@@ -6,7 +6,7 @@ handling and context than generic exceptions.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 
 class OdinAPIError(Exception):
@@ -17,7 +17,7 @@ class OdinAPIError(Exception):
     exception hierarchy.
     """
 
-    def __init__(self, message: str, details: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         """Initialize the exception.
 
         Args:
@@ -124,3 +124,15 @@ class LLMError(OdinAPIError):
 
     pass
 
+
+class ConfluenceError(OdinAPIError):
+    """Raised when Confluence operations fail.
+
+    Examples:
+        - Failed to retrieve page
+        - Failed to create/update page
+        - Authentication failed
+        - Space not accessible
+    """
+
+    pass

@@ -7,7 +7,6 @@ exponential backoff, jitter, and exception handling.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 import pytest
 
@@ -44,9 +43,7 @@ class TestRetryWithBackoff:
                 raise ValueError("Temporary error")
             return "success"
 
-        result = await retry_with_backoff(
-            failing_then_success, max_retries=3, base_delay=0.01
-        )
+        result = await retry_with_backoff(failing_then_success, max_retries=3, base_delay=0.01)
         assert result == "success"
         assert call_count == 3
 
@@ -130,9 +127,7 @@ class TestRetryWithBackoff:
         for _ in range(5):
             start = asyncio.get_event_loop().time()
             try:
-                await retry_with_backoff(
-                    failing_func, max_retries=1, base_delay=0.1, jitter=True
-                )
+                await retry_with_backoff(failing_func, max_retries=1, base_delay=0.1, jitter=True)
             except ValueError:
                 pass
             end = asyncio.get_event_loop().time()
@@ -142,9 +137,7 @@ class TestRetryWithBackoff:
         for _ in range(5):
             start = asyncio.get_event_loop().time()
             try:
-                await retry_with_backoff(
-                    failing_func, max_retries=1, base_delay=0.1, jitter=False
-                )
+                await retry_with_backoff(failing_func, max_retries=1, base_delay=0.1, jitter=False)
             except ValueError:
                 pass
             end = asyncio.get_event_loop().time()
@@ -258,9 +251,7 @@ class TestRetryConfig:
     @pytest.mark.asyncio
     async def test_retry_config_with_custom_exceptions(self) -> None:
         """Test RetryConfig with custom exception filter."""
-        config = RetryConfig(
-            max_retries=2, base_delay=0.01, exceptions=(ValueError, TypeError)
-        )
+        config = RetryConfig(max_retries=2, base_delay=0.01, exceptions=(ValueError, TypeError))
 
         call_count = 0
 
@@ -276,4 +267,3 @@ class TestRetryConfig:
         result = await config.execute(func)
         assert result == "success"
         assert call_count == 3
-

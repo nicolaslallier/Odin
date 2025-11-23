@@ -5,8 +5,6 @@ This module tests the full API application with all routes integrated.
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -43,7 +41,7 @@ class TestAPIIntegration:
     def test_app_health_endpoint(self, client: TestClient) -> None:
         """Test that health endpoint is accessible."""
         response = client.get("/health")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
@@ -60,10 +58,9 @@ class TestAPIIntegration:
         """Test that all expected routes are registered."""
         openapi_schema = client.app.openapi()
         paths = openapi_schema["paths"]
-        
+
         # Check key endpoints exist
         assert "/health" in paths
         assert "/data/" in paths or any("/data" in path for path in paths)
         assert any("/files" in path for path in paths)
         assert any("/llm" in path for path in paths)
-

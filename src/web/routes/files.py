@@ -6,10 +6,11 @@ Single Responsibility Principle (SRP) from SOLID.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 
 # Create router
 router = APIRouter(tags=["files"])
@@ -42,4 +43,3 @@ async def files_page(request: Request) -> HTMLResponse:
         "default_bucket": "odin-files",
     }
     return templates.TemplateResponse(request, "files.html", context)
-

@@ -175,11 +175,12 @@ async def list_data_items(repository: DataRepository = Depends(get_repository)) 
     try:
         entities = await repository.get_all()
         items = [
-            DataItem(id=entity.id, name=entity.name, description=entity.description, data=entity.data)
+            DataItem(
+                id=entity.id, name=entity.name, description=entity.description, data=entity.data
+            )
             for entity in entities
         ]
         total = await repository.count()
         return DataListResponse(items=items, total=total)
     except DatabaseError as e:
         raise HTTPException(status_code=500, detail=e.message)
-

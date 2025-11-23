@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import asyncio
 import random
-from typing import Any, Callable, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from src.api.logging_config import get_logger
 
@@ -54,7 +55,7 @@ async def retry_with_backoff(
         ...     base_delay=1.0,
         ... )
     """
-    last_exception: Optional[Exception] = None
+    last_exception: Exception | None = None
 
     for attempt in range(max_retries + 1):
         try:
@@ -158,4 +159,3 @@ class RetryConfig:
 DEFAULT_RETRY = RetryConfig(max_retries=3, base_delay=1.0)
 AGGRESSIVE_RETRY = RetryConfig(max_retries=5, base_delay=0.5, max_delay=30.0)
 CONSERVATIVE_RETRY = RetryConfig(max_retries=2, base_delay=2.0, max_delay=120.0)
-

@@ -5,7 +5,7 @@ This module defines all request and response models used by the API endpoints.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -56,7 +56,7 @@ class MessageResponse(BaseModel):
     """Message response model."""
 
     queue: str = Field(..., description="Queue name")
-    message: Optional[str] = Field(None, description="Message content")
+    message: str | None = Field(None, description="Message content")
 
 
 # Secret Management Models
@@ -71,7 +71,7 @@ class SecretResponse(BaseModel):
     """Secret read response model."""
 
     path: str = Field(..., description="Secret path")
-    data: Optional[dict[str, Any]] = Field(None, description="Secret data")
+    data: dict[str, Any] | None = Field(None, description="Secret data")
 
 
 # LLM Models
@@ -80,7 +80,7 @@ class GenerateRequest(BaseModel):
 
     model: str = Field(..., description="Model name")
     prompt: str = Field(..., description="Text prompt")
-    system: Optional[str] = Field(None, description="Optional system prompt")
+    system: str | None = Field(None, description="Optional system prompt")
 
 
 class GenerateResponse(BaseModel):
@@ -94,9 +94,9 @@ class ModelInfo(BaseModel):
     """Model information model with extended details."""
 
     name: str = Field(..., description="Model name")
-    size: Optional[int] = Field(None, description="Model size in bytes")
-    digest: Optional[str] = Field(None, description="Model digest/hash")
-    modified_at: Optional[str] = Field(None, description="Last modification time")
+    size: int | None = Field(None, description="Model size in bytes")
+    digest: str | None = Field(None, description="Model digest/hash")
+    modified_at: str | None = Field(None, description="Last modification time")
 
 
 class ModelListResponse(BaseModel):
@@ -124,9 +124,9 @@ class CircuitBreakerStates(BaseModel):
 class DataItem(BaseModel):
     """Generic data item model."""
 
-    id: Optional[int] = Field(None, description="Item ID")
+    id: int | None = Field(None, description="Item ID")
     name: str = Field(..., description="Item name")
-    description: Optional[str] = Field(None, description="Item description")
+    description: str | None = Field(None, description="Item description")
     data: dict[str, Any] = Field(default_factory=dict, description="Additional data")
 
 
@@ -145,15 +145,15 @@ class LogEntry(BaseModel):
     timestamp: str = Field(..., description="Log timestamp (ISO format)")
     level: str = Field(..., description="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     service: str = Field(..., description="Service name (api, worker, web, nginx)")
-    logger: Optional[str] = Field(None, description="Logger name")
+    logger: str | None = Field(None, description="Logger name")
     message: str = Field(..., description="Log message")
-    module: Optional[str] = Field(None, description="Module name")
-    function: Optional[str] = Field(None, description="Function name")
-    line: Optional[int] = Field(None, description="Line number")
-    exception: Optional[str] = Field(None, description="Exception traceback")
-    request_id: Optional[str] = Field(None, description="Request correlation ID")
-    task_id: Optional[str] = Field(None, description="Task correlation ID")
-    user_id: Optional[str] = Field(None, description="User ID")
+    module: str | None = Field(None, description="Module name")
+    function: str | None = Field(None, description="Function name")
+    line: int | None = Field(None, description="Line number")
+    exception: str | None = Field(None, description="Exception traceback")
+    request_id: str | None = Field(None, description="Request correlation ID")
+    task_id: str | None = Field(None, description="Task correlation ID")
+    user_id: str | None = Field(None, description="User ID")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     created_at: str = Field(..., description="Database insertion timestamp (ISO format)")
 
@@ -170,11 +170,11 @@ class LogListResponse(BaseModel):
 class LogSearchRequest(BaseModel):
     """Log search request model."""
 
-    start_time: Optional[str] = Field(None, description="Start time (ISO format)")
-    end_time: Optional[str] = Field(None, description="End time (ISO format)")
-    level: Optional[str] = Field(None, description="Log level filter")
-    service: Optional[str] = Field(None, description="Service name filter")
-    search: Optional[str] = Field(None, description="Search term for message content")
+    start_time: str | None = Field(None, description="Start time (ISO format)")
+    end_time: str | None = Field(None, description="End time (ISO format)")
+    level: str | None = Field(None, description="Log level filter")
+    service: str | None = Field(None, description="Service name filter")
+    search: str | None = Field(None, description="Search term for message content")
     limit: int = Field(default=100, ge=1, le=1000, description="Maximum results")
     offset: int = Field(default=0, ge=0, description="Offset for pagination")
 
@@ -203,8 +203,8 @@ class LogStatistics(BaseModel):
 class LogAnalysisRequest(BaseModel):
     """LLM log analysis request model."""
 
-    log_ids: Optional[list[int]] = Field(None, description="Specific log IDs to analyze")
-    search_criteria: Optional[LogSearchRequest] = Field(
+    log_ids: list[int] | None = Field(None, description="Specific log IDs to analyze")
+    search_criteria: LogSearchRequest | None = Field(
         None, description="Search criteria to select logs"
     )
     analysis_type: str = Field(
@@ -223,15 +223,9 @@ class LogAnalysisResponse(BaseModel):
     logs_analyzed: int = Field(..., description="Number of logs analyzed")
     summary: str = Field(..., description="Analysis summary")
     findings: list[str] = Field(default_factory=list, description="Key findings")
-    recommendations: list[str] = Field(
-        default_factory=list, description="Recommendations"
-    )
-    patterns: list[dict[str, Any]] = Field(
-        default_factory=list, description="Identified patterns"
-    )
-    related_logs: list[int] = Field(
-        default_factory=list, description="IDs of related log entries"
-    )
+    recommendations: list[str] = Field(default_factory=list, description="Recommendations")
+    patterns: list[dict[str, Any]] = Field(default_factory=list, description="Identified patterns")
+    related_logs: list[int] = Field(default_factory=list, description="IDs of related log entries")
 
 
 # Image Analysis Models
@@ -249,8 +243,8 @@ class ImageAnalysisResponse(BaseModel):
 
     id: int = Field(..., description="Image analysis ID")
     filename: str = Field(..., description="Original filename")
-    llm_description: Optional[str] = Field(None, description="LLM-generated description")
-    model_used: Optional[str] = Field(None, description="Model used for analysis")
+    llm_description: str | None = Field(None, description="LLM-generated description")
+    model_used: str | None = Field(None, description="Model used for analysis")
     metadata: ImageMetadata = Field(..., description="Image storage metadata")
     created_at: str = Field(..., description="Creation timestamp (ISO format)")
     updated_at: str = Field(..., description="Last update timestamp (ISO format)")
@@ -259,8 +253,128 @@ class ImageAnalysisResponse(BaseModel):
 class ImageAnalysisListResponse(BaseModel):
     """Image analysis list response model."""
 
-    analyses: list[ImageAnalysisResponse] = Field(
-        ..., description="List of image analyses"
-    )
+    analyses: list[ImageAnalysisResponse] = Field(..., description="List of image analyses")
     total: int = Field(..., description="Total number of analyses")
 
+
+# Async Confluence Statistics Models
+class StatisticsJobRequest(BaseModel):
+    """Request model for initiating async statistics collection."""
+
+    space_key: str = Field(..., description="Confluence space key", min_length=1, max_length=255)
+
+
+class StatisticsJobResponse(BaseModel):
+    """Response model for async statistics job creation."""
+
+    job_id: str = Field(..., description="Unique job identifier (UUID)")
+    space_key: str = Field(..., description="Confluence space key")
+    status: str = Field(..., description="Job status (pending, processing, completed, failed)")
+    estimated_time_seconds: int | None = Field(
+        None, description="Estimated time to completion in seconds"
+    )
+    created_at: str = Field(..., description="Job creation timestamp (ISO format)")
+
+
+class BasicStatistics(BaseModel):
+    """Basic Confluence space statistics."""
+
+    total_pages: int = Field(..., description="Total number of pages")
+    total_size_bytes: int = Field(..., description="Total size in bytes")
+    contributor_count: int = Field(..., description="Number of unique contributors")
+    last_updated: str | None = Field(None, description="Last update timestamp (ISO format)")
+
+
+class DetailedStatistics(BaseModel):
+    """Detailed Confluence space statistics."""
+
+    page_breakdown_by_type: dict[str, int] = Field(
+        default_factory=dict, description="Page count by type (page, blogpost, etc.)"
+    )
+    attachment_stats: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Attachment statistics (count, total_size, types)",
+    )
+    version_count: int = Field(default=0, description="Total number of page versions")
+
+
+class ComprehensiveStatistics(BaseModel):
+    """Comprehensive Confluence space statistics."""
+
+    user_activity: dict[str, Any] = Field(
+        default_factory=dict, description="User activity breakdown (pages per user)"
+    )
+    page_views: dict[str, Any] = Field(
+        default_factory=dict, description="Page view analytics (if available)"
+    )
+    comment_counts: dict[str, Any] = Field(
+        default_factory=dict, description="Comment count aggregation"
+    )
+    link_analysis: dict[str, Any] = Field(
+        default_factory=dict, description="Internal/external link analysis"
+    )
+
+
+class ConfluenceStatistics(BaseModel):
+    """Complete Confluence space statistics."""
+
+    space_key: str = Field(..., description="Confluence space key")
+    space_name: str | None = Field(None, description="Confluence space name")
+    timestamp: str = Field(..., description="Collection timestamp (ISO format)")
+    basic: BasicStatistics = Field(..., description="Basic statistics")
+    detailed: DetailedStatistics = Field(..., description="Detailed statistics")
+    comprehensive: ComprehensiveStatistics = Field(..., description="Comprehensive statistics")
+    collection_time_seconds: float | None = Field(
+        None, description="Time taken to collect statistics"
+    )
+
+
+class StatisticsCallbackRequest(BaseModel):
+    """Request model for worker callback with collected statistics."""
+
+    job_id: str = Field(..., description="Job identifier matching the original request")
+    space_key: str = Field(..., description="Confluence space key")
+    statistics: ConfluenceStatistics = Field(..., description="Collected statistics")
+    status: str = Field(..., description="Collection status (completed, failed)")
+    error_message: str | None = Field(None, description="Error message if status is failed")
+
+
+class StatisticsHistoryEntry(BaseModel):
+    """Single historical statistics entry."""
+
+    id: int = Field(..., description="Entry ID")
+    space_key: str = Field(..., description="Confluence space key")
+    space_name: str | None = Field(None, description="Confluence space name")
+    timestamp: str = Field(..., description="Collection timestamp (ISO format)")
+    total_pages: int = Field(..., description="Total number of pages")
+    total_size_bytes: int = Field(..., description="Total size in bytes")
+    contributor_count: int = Field(..., description="Number of unique contributors")
+    collection_time_seconds: float | None = Field(
+        None, description="Time taken to collect statistics"
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata (detailed/comprehensive stats)"
+    )
+
+
+class StatisticsHistoryResponse(BaseModel):
+    """Response model for historical statistics query."""
+
+    space_key: str = Field(..., description="Confluence space key")
+    entries: list[StatisticsHistoryEntry] = Field(..., description="Historical statistics entries")
+    total: int = Field(..., description="Total number of entries")
+    time_range: dict[str, str] = Field(..., description="Time range of data (start, end)")
+    granularity: str = Field(..., description="Data granularity (raw, hourly, daily)")
+
+
+class StatisticsJobStatusResponse(BaseModel):
+    """Response model for job status query."""
+
+    job_id: str = Field(..., description="Job identifier")
+    space_key: str = Field(..., description="Confluence space key")
+    status: str = Field(..., description="Job status (pending, processing, completed, failed)")
+    progress: int | None = Field(None, description="Progress percentage (0-100)")
+    created_at: str = Field(..., description="Job creation timestamp (ISO format)")
+    completed_at: str | None = Field(None, description="Job completion timestamp (ISO format)")
+    statistics: ConfluenceStatistics | None = Field(None, description="Statistics (if completed)")
+    error_message: str | None = Field(None, description="Error message (if failed)")

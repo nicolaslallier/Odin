@@ -6,14 +6,22 @@ the repository pattern to abstract database operations.
 
 from __future__ import annotations
 
-from typing import List
-
-from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, delete, insert, select, update
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    delete,
+    insert,
+    select,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.domain.entities import ImageAnalysis
 from src.api.exceptions import DatabaseError, ResourceNotFoundError
-
 
 # Define the image_analysis table
 metadata = MetaData()
@@ -109,9 +117,7 @@ class ImageRepository:
             row = result.first()
 
             if row is None:
-                raise ResourceNotFoundError(
-                    f"Image analysis not found", {"id": item_id}
-                )
+                raise ResourceNotFoundError("Image analysis not found", {"id": item_id})
 
             return ImageAnalysis(
                 id=row.id,
@@ -130,7 +136,7 @@ class ImageRepository:
         except Exception as e:
             raise DatabaseError(f"Failed to retrieve image analysis: {e}")
 
-    async def get_all(self) -> List[ImageAnalysis]:
+    async def get_all(self) -> list[ImageAnalysis]:
         """Get all image analysis records.
 
         Returns:
@@ -140,9 +146,7 @@ class ImageRepository:
             DatabaseError: If retrieval fails
         """
         try:
-            stmt = select(image_analysis_table).order_by(
-                image_analysis_table.c.created_at.desc()
-            )
+            stmt = select(image_analysis_table).order_by(image_analysis_table.c.created_at.desc())
             result = await self.session.execute(stmt)
             rows = result.fetchall()
 
@@ -222,9 +226,7 @@ class ImageRepository:
             # Check if item exists
             await self.get_by_id(item_id)
 
-            stmt = delete(image_analysis_table).where(
-                image_analysis_table.c.id == item_id
-            )
+            stmt = delete(image_analysis_table).where(image_analysis_table.c.id == item_id)
             await self.session.execute(stmt)
             await self.session.commit()
         except ResourceNotFoundError:
@@ -263,4 +265,3 @@ async def create_tables(engine) -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
-

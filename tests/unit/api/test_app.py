@@ -1,16 +1,17 @@
-import pytest
 from unittest.mock import MagicMock
-from types import SimpleNamespace
-from fastapi import FastAPI
+
+import pytest
 
 from src.api.app import create_app, get_container
 from src.api.exceptions import ResourceNotFoundError
+
 
 class DummyConfig:
     log_level = "INFO"
     postgres_dsn = "dsn"
     host = "0.0.0.0"
     port = 8001
+
 
 @pytest.fixture
 def app_with_container():
@@ -19,11 +20,13 @@ def app_with_container():
     app.state.container = "container-mock"
     return app
 
+
 @pytest.fixture
 def app_without_container():
     app = create_app(DummyConfig())
     # No .container in state
     return app
+
 
 @pytest.mark.asyncio
 async def test_not_found_handler_returns_404():
@@ -44,6 +47,7 @@ async def test_not_found_handler_returns_404():
 def test_get_container_happy(app_with_container):
     container = get_container(app_with_container)
     assert container == "container-mock"
+
 
 def test_get_container_error(app_without_container):
     # Should raise if no container

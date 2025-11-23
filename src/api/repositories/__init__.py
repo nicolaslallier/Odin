@@ -5,5 +5,3 @@ following the Dependency Inversion Principle (DIP) from SOLID.
 """
 
 from __future__ import annotations
-
-

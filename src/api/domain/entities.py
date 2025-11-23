@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -28,11 +28,11 @@ class DataItem:
     """
 
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     data: dict[str, Any] = field(default_factory=dict)
-    id: Optional[int] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    id: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     def __post_init__(self) -> None:
         """Initialize timestamps for new entities."""
@@ -42,7 +42,10 @@ class DataItem:
             self.updated_at = datetime.utcnow()
 
     def update(
-        self, name: Optional[str] = None, description: Optional[str] = None, data: Optional[dict[str, Any]] = None
+        self,
+        name: str | None = None,
+        description: str | None = None,
+        data: dict[str, Any] | None = None,
     ) -> None:
         """Update entity fields.
 
@@ -85,11 +88,11 @@ class ImageAnalysis:
     object_key: str
     content_type: str
     size_bytes: int
-    llm_description: Optional[str] = None
-    model_used: Optional[str] = None
-    id: Optional[int] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    llm_description: str | None = None
+    model_used: str | None = None
+    id: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     def __post_init__(self) -> None:
         """Initialize timestamps for new entities."""
@@ -108,4 +111,3 @@ class ImageAnalysis:
         self.llm_description = description
         self.model_used = model
         self.updated_at = datetime.utcnow()
-

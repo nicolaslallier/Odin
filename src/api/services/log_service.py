@@ -7,7 +7,7 @@ and management, following the Service pattern and SOLID principles.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from src.api.exceptions import ValidationError
@@ -31,11 +31,11 @@ class LogService:
 
     async def get_logs(
         self,
-        start_time: Optional[str] = None,
-        end_time: Optional[str] = None,
-        level: Optional[str] = None,
-        service: Optional[str] = None,
-        search: Optional[str] = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        level: str | None = None,
+        service: str | None = None,
+        search: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> tuple[list[dict[str, Any]], int]:
@@ -128,8 +128,8 @@ class LogService:
 
     async def get_statistics(
         self,
-        start_time: Optional[str] = None,
-        end_time: Optional[str] = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
     ) -> dict[str, Any]:
         """Get log statistics for a time range.
 
@@ -153,8 +153,8 @@ class LogService:
 
     async def get_related_logs(
         self,
-        request_id: Optional[str] = None,
-        task_id: Optional[str] = None,
+        request_id: str | None = None,
+        task_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """Get logs related by correlation IDs.
@@ -186,7 +186,7 @@ class LogService:
             limit=limit,
         )
 
-    async def get_log_by_id(self, log_id: int) -> Optional[dict[str, Any]]:
+    async def get_log_by_id(self, log_id: int) -> dict[str, Any] | None:
         """Get a single log entry by ID.
 
         Args:
@@ -239,8 +239,10 @@ class LogService:
             else:
                 # Try parsing as date only
                 return datetime.fromisoformat(timestamp_str)
-        except ValueError as e:
-            raise ValidationError(f"Invalid timestamp format: {timestamp_str}. Use ISO format (e.g., 2024-01-01T12:00:00Z)")
+        except ValueError:
+            raise ValidationError(
+                f"Invalid timestamp format: {timestamp_str}. Use ISO format (e.g., 2024-01-01T12:00:00Z)"
+            )
 
     def _parse_uuid(self, uuid_str: str) -> UUID:
         """Parse UUID string.
@@ -258,4 +260,3 @@ class LogService:
             return UUID(uuid_str)
         except ValueError:
             raise ValidationError(f"Invalid UUID format: {uuid_str}")
-

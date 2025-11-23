@@ -6,12 +6,11 @@ of success cases, error handling, and edge cases.
 
 from __future__ import annotations
 
-from datetime import datetime
 from io import BytesIO
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.api.domain.entities import ImageAnalysis
@@ -27,7 +26,7 @@ def mock_image_analysis_service() -> Mock:
         Mock image analysis service
     """
     service = Mock()
-    
+
     sample_analysis = ImageAnalysis(
         id=1,
         filename="test.jpg",
@@ -38,12 +37,12 @@ def mock_image_analysis_service() -> Mock:
         llm_description="A beautiful sunset over mountains",
         model_used="llava:latest",
     )
-    
+
     service.analyze_and_store = AsyncMock(return_value=sample_analysis)
     service.get_analysis = AsyncMock(return_value=sample_analysis)
     service.list_analyses = AsyncMock(return_value=[sample_analysis])
     service.delete_analysis = AsyncMock()
-    
+
     return service
 
 
@@ -106,9 +105,9 @@ class TestAnalyzeImageEndpoint:
             "prompt": "Describe this image",
             "model": "llava:latest",
         }
-        
+
         response = client.post("/llm/analyze-image", files=files, data=data)
-        
+
         assert response.status_code == 200
         result = response.json()
         assert result["id"] == 1
@@ -116,7 +115,7 @@ class TestAnalyzeImageEndpoint:
         assert result["llm_description"] == "A beautiful sunset over mountains"
         assert result["model_used"] == "llava:latest"
         assert "metadata" in result
-        
+
         # Verify service was called
         mock_image_analysis_service.analyze_and_store.assert_called_once()
 
@@ -126,11 +125,11 @@ class TestAnalyzeImageEndpoint:
         """Test image analysis with only required parameters."""
         file_content = b"fake_image_data"
         files = {"file": ("test.jpg", BytesIO(file_content), "image/jpeg")}
-        
+
         response = client.post("/llm/analyze-image", files=files)
-        
+
         assert response.status_code == 200
-        
+
         # Verify service was called with defaults
         call_args = mock_image_analysis_service.analyze_and_store.call_args
         assert call_args[1]["prompt"] is None  # Will use default in service
@@ -142,9 +141,9 @@ class TestAnalyzeImageEndpoint:
         """Test analysis with PNG image."""
         file_content = b"fake_png_data"
         files = {"file": ("test.png", BytesIO(file_content), "image/png")}
-        
+
         response = client.post("/llm/analyze-image", files=files)
-        
+
         assert response.status_code == 200
         call_args = mock_image_analysis_service.analyze_and_store.call_args
         assert call_args[1]["content_type"] == "image/png"
@@ -156,12 +155,12 @@ class TestAnalyzeImageEndpoint:
         mock_image_analysis_service.analyze_and_store.side_effect = ValidationError(
             "File too large"
         )
-        
+
         file_content = b"fake_image_data"
         files = {"file": ("test.jpg", BytesIO(file_content), "image/jpeg")}
-        
+
         response = client.post("/llm/analyze-image", files=files)
-        
+
         assert response.status_code == 400
         assert "File too large" in response.json()["detail"]
 
@@ -169,15 +168,13 @@ class TestAnalyzeImageEndpoint:
         self, client: TestClient, mock_image_analysis_service: Mock
     ) -> None:
         """Test handling of storage errors."""
-        mock_image_analysis_service.analyze_and_store.side_effect = StorageError(
-            "Upload failed"
-        )
-        
+        mock_image_analysis_service.analyze_and_store.side_effect = StorageError("Upload failed")
+
         file_content = b"fake_image_data"
         files = {"file": ("test.jpg", BytesIO(file_content), "image/jpeg")}
-        
+
         response = client.post("/llm/analyze-image", files=files)
-        
+
         assert response.status_code == 500
         assert "Upload failed" in response.json()["detail"]
 
@@ -185,24 +182,22 @@ class TestAnalyzeImageEndpoint:
         self, client: TestClient, mock_image_analysis_service: Mock
     ) -> None:
         """Test handling of LLM errors."""
-        mock_image_analysis_service.analyze_and_store.side_effect = LLMError(
-            "Model not available"
-        )
-        
+        mock_image_analysis_service.analyze_and_store.side_effect = LLMError("Model not available")
+
         file_content = b"fake_image_data"
         files = {"file": ("test.jpg", BytesIO(file_content), "image/jpeg")}
-        
+
         response = client.post("/llm/analyze-image", files=files)
-        
+
         assert response.status_code == 500
         assert "Model not available" in response.json()["detail"]
 
     def test_analyze_image_missing_file(self, client: TestClient) -> None:
         """Test endpoint with missing file parameter."""
         data = {"prompt": "Describe this image"}
-        
+
         response = client.post("/llm/analyze-image", data=data)
-        
+
         assert response.status_code == 422  # Unprocessable Entity
 
 
@@ -215,32 +210,30 @@ class TestGetAnalysisEndpoint:
     ) -> None:
         """Test successful retrieval of image analysis."""
         response = client.get("/llm/analyze-image/1")
-        
+
         assert response.status_code == 200
         result = response.json()
         assert result["id"] == 1
         assert result["filename"] == "test.jpg"
         assert result["llm_description"] == "A beautiful sunset over mountains"
-        
+
         mock_image_analysis_service.get_analysis.assert_called_once_with(1)
 
     def test_get_analysis_not_found(
         self, client: TestClient, mock_image_analysis_service: Mock
     ) -> None:
         """Test retrieval of non-existent analysis."""
-        mock_image_analysis_service.get_analysis.side_effect = ResourceNotFoundError(
-            "Not found"
-        )
-        
+        mock_image_analysis_service.get_analysis.side_effect = ResourceNotFoundError("Not found")
+
         response = client.get("/llm/analyze-image/999")
-        
+
         assert response.status_code == 404
         assert "Not found" in response.json()["detail"]
 
     def test_get_analysis_invalid_id(self, client: TestClient) -> None:
         """Test endpoint with invalid ID parameter."""
         response = client.get("/llm/analyze-image/invalid")
-        
+
         assert response.status_code == 422  # Unprocessable Entity
 
 
@@ -253,7 +246,7 @@ class TestListAnalysesEndpoint:
     ) -> None:
         """Test successful listing of all analyses."""
         response = client.get("/llm/analyze-image")
-        
+
         assert response.status_code == 200
         result = response.json()
         assert "analyses" in result
@@ -261,7 +254,7 @@ class TestListAnalysesEndpoint:
         assert len(result["analyses"]) == 1
         assert result["total"] == 1
         assert result["analyses"][0]["id"] == 1
-        
+
         mock_image_analysis_service.list_analyses.assert_called_once()
 
     def test_list_analyses_empty(
@@ -269,9 +262,9 @@ class TestListAnalysesEndpoint:
     ) -> None:
         """Test listing when no analyses exist."""
         mock_image_analysis_service.list_analyses.return_value = []
-        
+
         response = client.get("/llm/analyze-image")
-        
+
         assert response.status_code == 200
         result = response.json()
         assert len(result["analyses"]) == 0
@@ -287,31 +280,29 @@ class TestDeleteAnalysisEndpoint:
     ) -> None:
         """Test successful deletion of image analysis."""
         response = client.delete("/llm/analyze-image/1")
-        
+
         assert response.status_code == 200
         result = response.json()
         assert "message" in result
         assert "deleted" in result["message"].lower()
-        
+
         mock_image_analysis_service.delete_analysis.assert_called_once_with(1)
 
     def test_delete_analysis_not_found(
         self, client: TestClient, mock_image_analysis_service: Mock
     ) -> None:
         """Test deletion of non-existent analysis."""
-        mock_image_analysis_service.delete_analysis.side_effect = ResourceNotFoundError(
-            "Not found"
-        )
-        
+        mock_image_analysis_service.delete_analysis.side_effect = ResourceNotFoundError("Not found")
+
         response = client.delete("/llm/analyze-image/999")
-        
+
         assert response.status_code == 404
         assert "Not found" in response.json()["detail"]
 
     def test_delete_analysis_invalid_id(self, client: TestClient) -> None:
         """Test endpoint with invalid ID parameter."""
         response = client.delete("/llm/analyze-image/invalid")
-        
+
         assert response.status_code == 422  # Unprocessable Entity
 
 
@@ -324,10 +315,10 @@ class TestResponseFormats:
     ) -> None:
         """Test that response follows expected schema."""
         response = client.get("/llm/analyze-image/1")
-        
+
         assert response.status_code == 200
         result = response.json()
-        
+
         # Check required fields
         required_fields = [
             "id",
@@ -340,7 +331,7 @@ class TestResponseFormats:
         ]
         for field in required_fields:
             assert field in result
-        
+
         # Check metadata structure
         metadata = result["metadata"]
         metadata_fields = ["bucket", "object_key", "content_type", "size_bytes"]
@@ -352,10 +343,10 @@ class TestResponseFormats:
     ) -> None:
         """Test that list response follows expected schema."""
         response = client.get("/llm/analyze-image")
-        
+
         assert response.status_code == 200
         result = response.json()
-        
+
         # Check required fields
         assert "analyses" in result
         assert "total" in result
@@ -371,12 +362,10 @@ class TestErrorHandling:
         self, client: TestClient, mock_image_analysis_service: Mock
     ) -> None:
         """Test handling of unexpected exceptions."""
-        mock_image_analysis_service.get_analysis.side_effect = Exception(
-            "Unexpected error"
-        )
-        
+        mock_image_analysis_service.get_analysis.side_effect = Exception("Unexpected error")
+
         response = client.get("/llm/analyze-image/1")
-        
+
         assert response.status_code == 500
         assert "detail" in response.json()
 
@@ -385,10 +374,9 @@ class TestErrorHandling:
         file1 = ("test1.jpg", BytesIO(b"data1"), "image/jpeg")
         file2 = ("test2.jpg", BytesIO(b"data2"), "image/jpeg")
         files = [("file", file1), ("file", file2)]
-        
+
         # FastAPI should only accept one file with the 'file' parameter
         response = client.post("/llm/analyze-image", files=files)
-        
+
         # Should succeed with first file or return validation error
         assert response.status_code in [200, 422]
-

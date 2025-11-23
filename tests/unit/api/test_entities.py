@@ -1,7 +1,5 @@
-from datetime import datetime, timedelta
-import time
-import pytest
 from src.api.domain.entities import DataItem, ImageAnalysis
+
 
 def test_dataitem_update_mutates_fields_and_updated_at():
     item = DataItem(name="test")

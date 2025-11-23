@@ -90,4 +90,3 @@ async def receive_message(
         raise HTTPException(status_code=503, detail=e.message)
     except QueueError as e:
         raise HTTPException(status_code=500, detail=e.message)
-

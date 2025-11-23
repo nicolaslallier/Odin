@@ -5,7 +5,7 @@ This module tests the health check endpoints for the API service.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -50,7 +50,7 @@ class TestHealthRoutes:
     def test_health_endpoint_returns_healthy(self, client: TestClient) -> None:
         """Test /health endpoint returns healthy status."""
         response = client.get("/health")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
@@ -59,37 +59,37 @@ class TestHealthRoutes:
     def test_health_services_endpoint_all_healthy(self, client: TestClient, app: FastAPI) -> None:
         """Test /health/services endpoint when all services are healthy."""
         from src.api.routes.health import get_container
-        
+
         # Create mock container with all services healthy
         mock_container = MagicMock()
-        
+
         # All health_check methods must be AsyncMock since they're awaited
         mock_db = MagicMock()
         mock_db.health_check = AsyncMock(return_value=True)
         mock_container.database = mock_db
-        
+
         mock_storage = MagicMock()
         mock_storage.health_check = AsyncMock(return_value=True)
         mock_container.storage = mock_storage
-        
+
         mock_queue = MagicMock()
         mock_queue.health_check = AsyncMock(return_value=True)
         mock_container.queue = mock_queue
-        
+
         mock_vault = MagicMock()
         mock_vault.health_check = AsyncMock(return_value=True)
         mock_container.vault = mock_vault
-        
+
         mock_ollama = MagicMock()
         mock_ollama.health_check = AsyncMock(return_value=True)
         mock_container.ollama = mock_ollama
-        
+
         # Override dependency
         app.dependency_overrides[get_container] = lambda: mock_container
-        
+
         try:
             response = client.get("/health/services")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["database"] is True
@@ -100,46 +100,49 @@ class TestHealthRoutes:
         finally:
             app.dependency_overrides.clear()
 
-    def test_health_services_endpoint_some_unhealthy(self, client: TestClient, app: FastAPI) -> None:
+    def test_health_services_endpoint_some_unhealthy(
+        self, client: TestClient, app: FastAPI
+    ) -> None:
         """Test /health/services endpoint when some services are unhealthy."""
-        from src.api.routes.health import get_container
-        from src.api.services.cache import get_cache
-        
         # Clear cache to avoid interference from previous test
         import asyncio
+
+        from src.api.routes.health import get_container
+        from src.api.services.cache import get_cache
+
         cache = get_cache()
         asyncio.run(cache.delete("health:services"))
-        
+
         # Create mock container with some services unhealthy
         mock_container = MagicMock()
-        
+
         # All health_check methods must be AsyncMock since they're awaited
         mock_db = MagicMock()
         mock_db.health_check = AsyncMock(return_value=True)
         mock_container.database = mock_db
-        
+
         mock_storage = MagicMock()
         mock_storage.health_check = AsyncMock(return_value=False)
         mock_container.storage = mock_storage
-        
+
         mock_queue = MagicMock()
         mock_queue.health_check = AsyncMock(return_value=True)
         mock_container.queue = mock_queue
-        
+
         mock_vault = MagicMock()
         mock_vault.health_check = AsyncMock(return_value=False)
         mock_container.vault = mock_vault
-        
+
         mock_ollama = MagicMock()
         mock_ollama.health_check = AsyncMock(return_value=True)
         mock_container.ollama = mock_ollama
-        
+
         # Override dependency
         app.dependency_overrides[get_container] = lambda: mock_container
-        
+
         try:
             response = client.get("/health/services")
-            
+
             assert response.status_code == 200
             data = response.json()
             assert data["database"] is True
@@ -149,4 +152,3 @@ class TestHealthRoutes:
             assert data["ollama"] is True
         finally:
             app.dependency_overrides.clear()
-

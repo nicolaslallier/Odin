@@ -6,8 +6,8 @@ for the API service.
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator, Optional
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel, BlockingConnection
@@ -32,7 +32,7 @@ class QueueService:
             url: RabbitMQ connection URL (e.g., amqp://user:pass@host:5672/)
         """
         self.url = url
-        self._connection: Optional[BlockingConnection] = None
+        self._connection: BlockingConnection | None = None
         self._parameters = pika.URLParameters(self.url)
 
     def _ensure_connection(self) -> BlockingConnection:
@@ -113,7 +113,7 @@ class QueueService:
             properties = None
             if persistent:
                 properties = pika.BasicProperties(delivery_mode=2)
-            
+
             channel.basic_publish(
                 exchange="",
                 routing_key=queue_name,
@@ -121,7 +121,7 @@ class QueueService:
                 properties=properties,
             )
 
-    def consume_message(self, queue_name: str) -> Optional[str]:
+    def consume_message(self, queue_name: str) -> str | None:
         """Consume a single message from queue.
 
         Args:
@@ -135,10 +135,10 @@ class QueueService:
         """
         with self._get_channel() as channel:
             method, properties, body = channel.basic_get(queue=queue_name, auto_ack=False)
-            
+
             if method is None:
                 return None
-            
+
             channel.basic_ack(delivery_tag=method.delivery_tag)
             return body.decode("utf-8")
 
@@ -165,4 +165,3 @@ class QueueService:
             return connection.is_open
         except Exception:
             return False
-

@@ -115,4 +115,3 @@ async def delete_secret(
         return {"message": f"Secret at {path} deleted"}
     except VaultError as e:
         raise HTTPException(status_code=500, detail=e.message)
-
