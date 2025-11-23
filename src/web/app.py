@@ -126,10 +126,15 @@ def create_app(config: WebConfig | None = None) -> FastAPI:
     templates_dir.mkdir(parents=True, exist_ok=True)
     app.state.templates = Jinja2Templates(directory=str(templates_dir))
 
-    # Configure static files
+    # Configure static files (legacy)
     static_dir = Path(__file__).parent / "static"
     static_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+    # Mount React portal frontend
+    frontend_dir = Path(__file__).parent.parent.parent / "frontend" / "portal" / "dist"
+    if frontend_dir.exists():
+        app.mount("/portal-assets", StaticFiles(directory=str(frontend_dir)), name="portal-assets")
 
     # Register routes
     from src.web.routes.confluence import router as confluence_router
@@ -167,6 +172,130 @@ def create_app(config: WebConfig | None = None) -> FastAPI:
             Dictionary with status information
         """
         return {"status": "healthy", "service": "odin-web"}
+
+    # Add service discovery endpoint for micro-frontends
+    @app.get("/api/portal/services")
+    async def get_services() -> dict[str, list[dict[str, any]]]:
+        """Get available micro-frontend services.
+
+        Returns:
+            Dictionary with list of service manifests
+        """
+        # TODO: Dynamically discover which microservices are running
+        # For now, return static configuration
+        services = [
+            {
+                "name": "health",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/health/remoteEntry.js",
+                "exposedModules": ["./HealthApp", "./routes"],
+                "routes": [
+                    {"path": "/health", "title": "Health Monitoring", "icon": "health"}
+                ],
+            },
+            {
+                "name": "data",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/data/remoteEntry.js",
+                "exposedModules": ["./DataApp", "./routes"],
+                "routes": [
+                    {"path": "/data", "title": "Data Management", "icon": "database"}
+                ],
+            },
+            {
+                "name": "confluence",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/confluence/remoteEntry.js",
+                "exposedModules": ["./ConfluenceApp", "./routes"],
+                "routes": [
+                    {"path": "/confluence", "title": "Confluence", "icon": "document"}
+                ],
+            },
+            {
+                "name": "files",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/files/remoteEntry.js",
+                "exposedModules": ["./FilesApp", "./routes"],
+                "routes": [
+                    {"path": "/files", "title": "File Management", "icon": "folder"}
+                ],
+            },
+            {
+                "name": "llm",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/llm/remoteEntry.js",
+                "exposedModules": ["./LlmApp", "./routes"],
+                "routes": [
+                    {"path": "/llm", "title": "LLM Services", "icon": "brain"}
+                ],
+            },
+            {
+                "name": "logs",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/logs/remoteEntry.js",
+                "exposedModules": ["./LogsApp", "./routes"],
+                "routes": [
+                    {"path": "/logs", "title": "Logs", "icon": "list"}
+                ],
+            },
+            {
+                "name": "secrets",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/secrets/remoteEntry.js",
+                "exposedModules": ["./SecretsApp", "./routes"],
+                "routes": [
+                    {"path": "/secrets", "title": "Secrets Management", "icon": "key"}
+                ],
+            },
+            {
+                "name": "messages",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/messages/remoteEntry.js",
+                "exposedModules": ["./MessagesApp", "./routes"],
+                "routes": [
+                    {"path": "/messages", "title": "Messages", "icon": "message"}
+                ],
+            },
+            {
+                "name": "imageAnalysis",
+                "version": "2.0.0",
+                "remoteEntry": "/mfe/image-analysis/remoteEntry.js",
+                "exposedModules": ["./ImageAnalysisApp", "./routes"],
+                "routes": [
+                    {"path": "/image-analysis", "title": "Image Analysis", "icon": "image"}
+                ],
+            },
+        ]
+        return {"services": services}
+
+    # Serve React portal for all non-API routes (SPA fallback)
+    from fastapi.responses import FileResponse
+    
+    @app.get("/{full_path:path}")
+    async def serve_portal(full_path: str):
+        """Serve React portal application.
+        
+        This catch-all route serves the React portal's index.html for all routes
+        that don't match API endpoints, enabling client-side routing.
+        """
+        # Skip for API routes and existing assets
+        if full_path.startswith("api/") or full_path.startswith("static/") or full_path.startswith("portal-assets/"):
+            return {"error": "Not found"}
+        
+        # Serve index.html for React router
+        frontend_dir = Path(__file__).parent.parent.parent / "frontend" / "portal" / "dist"
+        index_path = frontend_dir / "index.html"
+        
+        if index_path.exists():
+            return FileResponse(index_path)
+        else:
+            # Fallback to legacy templates if React build not available
+            from fastapi.responses import HTMLResponse
+            return HTMLResponse(
+                content="<html><body><h1>Odin Portal</h1><p>Frontend build not found. "
+                "Run 'npm run build:portal' to build the React application.</p></body></html>",
+                status_code=200
+            )
 
     return app
 

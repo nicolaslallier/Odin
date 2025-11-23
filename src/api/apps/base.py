@@ -17,8 +17,7 @@ from src.api.exceptions import ResourceNotFoundError
 from src.api.services.container import ServiceContainer
 
 
-@asynccontextmanager
-async def create_lifespan(service_name: str):
+def create_lifespan(service_name: str):
     """Create lifespan context manager for a microservice.
 
     Args:
@@ -28,6 +27,7 @@ async def create_lifespan(service_name: str):
         Async context manager for FastAPI lifespan
     """
 
+    @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         """Manage application lifespan events.
 

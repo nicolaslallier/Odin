@@ -1,0 +1,41 @@
+{
+  "name": "odin",
+  "version": "2.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend/portal",
+    "frontend/packages/*",
+    "frontend/microservices/*"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "build:shared": "npm run build --workspace=@odin/shared",
+    "build:portal": "npm run build --workspace=@odin/portal",
+    "build:mfe:health": "npm run build --workspace=@odin/mfe-health",
+    "build:mfe:data": "npm run build --workspace=@odin/mfe-data",
+    "build:mfe:confluence": "npm run build --workspace=@odin/mfe-confluence",
+    "build:mfe:files": "npm run build --workspace=@odin/mfe-files",
+    "build:mfe:llm": "npm run build --workspace=@odin/mfe-llm",
+    "build:mfe:logs": "npm run build --workspace=@odin/mfe-logs",
+    "build:mfe:secrets": "npm run build --workspace=@odin/mfe-secrets",
+    "build:mfe:messages": "npm run build --workspace=@odin/mfe-messages",
+    "build:mfe:image-analysis": "npm run build --workspace=@odin/mfe-image-analysis",
+    "build:all:mfes": "npm run build:mfe:health && npm run build:mfe:data && npm run build:mfe:confluence && npm run build:mfe:files && npm run build:mfe:llm && npm run build:mfe:logs && npm run build:mfe:secrets && npm run build:mfe:messages && npm run build:mfe:image-analysis",
+    "build:all": "npm run build:shared && npm run build:portal && npm run build:all:mfes",
+    "dev:portal": "npm run dev --workspace=@odin/portal",
+    "dev:mfe:health": "npm run dev --workspace=@odin/mfe-health",
+    "test:frontend": "npm run test --workspaces --if-present",
+    "lint:frontend": "npm run lint --workspaces --if-present",
+    "format:frontend": "npm run format --workspaces --if-present",
+    "type-check:frontend": "npm run type-check --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
+

@@ -70,6 +70,61 @@ async def fetch_circuit_breaker_states(api_base_url: str) -> dict[str, str]:
         return {}
 
 
+async def fetch_latest_health_from_api(api_base_url: str) -> dict[str, Any]:
+    """Fetch latest health check data from Health API via nginx.
+
+    This function queries the Health API's /health/latest endpoint which returns
+    the most recent health check for each service from the database.
+
+    Args:
+        api_base_url: Base URL of the API service (should route through nginx)
+
+    Returns:
+        Dictionary with services grouped by type (application, api_microservices, infrastructure)
+    """
+    default_response = {
+        "application": {},
+        "api_microservices": {},
+        "infrastructure": {},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{api_base_url}/health/latest")
+            if response.status_code == 200:
+                data = response.json()
+                services = data.get("services", [])
+                
+                # Group services by type
+                result = {
+                    "application": {},
+                    "api_microservices": {},
+                    "infrastructure": {},
+                }
+                
+                for service in services:
+                    service_name = service.get("service_name")
+                    is_healthy = service.get("is_healthy", False)
+                    service_type = service.get("service_type", "application")
+                    
+                    # Categorize API microservices separately
+                    if service_name and service_name.startswith("api-"):
+                        result["api_microservices"][service_name] = is_healthy
+                    elif service_type == "infrastructure":
+                        result["infrastructure"][service_name] = is_healthy
+                    else:
+                        result["application"][service_name] = is_healthy
+                
+                # Always add portal as healthy (we're running!)
+                result["application"]["portal"] = True
+                
+                return result
+            return default_response
+    except Exception as e:
+        # API service unavailable, return empty
+        return default_response
+
+
 async def check_application_services() -> dict[str, bool]:
     """Check health of application services.
 
@@ -139,7 +194,7 @@ async def health_page(request: Request) -> HTMLResponse:
     """Render the health monitoring page.
 
     This endpoint serves the health monitoring dashboard showing the status
-    of all infrastructure and application services.
+    of all infrastructure and application services, including API microservices.
 
     Args:
         request: The incoming HTTP request
@@ -150,16 +205,18 @@ async def health_page(request: Request) -> HTMLResponse:
     config = request.app.state.config
     api_base_url = config.api_base_url
 
-    # Fetch all health data concurrently
-    infrastructure = await fetch_infrastructure_health(api_base_url)
+    # Fetch latest health data from Health API (includes all monitored services)
+    latest_health = await fetch_latest_health_from_api(api_base_url)
+    
+    # Also fetch circuit breakers
     circuit_breakers = await fetch_circuit_breaker_states(api_base_url)
-    application = await check_application_services()
 
     context = {
         "title": "Health Monitor",
-        "version": "1.1.0",
-        "infrastructure": infrastructure,
-        "application": application,
+        "version": "1.7.1",
+        "infrastructure": latest_health.get("infrastructure", {}),
+        "application": latest_health.get("application", {}),
+        "api_microservices": latest_health.get("api_microservices", {}),
         "circuit_breakers": circuit_breakers,
     }
 
@@ -170,8 +227,8 @@ async def health_page(request: Request) -> HTMLResponse:
 async def health_api(request: Request) -> dict[str, Any]:
     """API endpoint for health data (for AJAX requests).
 
-    This endpoint returns JSON data with the current health status of all services.
-    Used by the frontend JavaScript for auto-refresh functionality.
+    This endpoint returns JSON data with the current health status of all services,
+    including API microservices. Used by the frontend JavaScript for auto-refresh.
 
     Args:
         request: The incoming HTTP request
@@ -182,14 +239,16 @@ async def health_api(request: Request) -> dict[str, Any]:
     config = request.app.state.config
     api_base_url = config.api_base_url
 
-    # Fetch all health data concurrently
-    infrastructure = await fetch_infrastructure_health(api_base_url)
+    # Fetch latest health data from Health API (includes all monitored services)
+    latest_health = await fetch_latest_health_from_api(api_base_url)
+    
+    # Also fetch circuit breakers
     circuit_breakers = await fetch_circuit_breaker_states(api_base_url)
-    application = await check_application_services()
 
     return {
-        "infrastructure": infrastructure,
-        "application": application,
+        "infrastructure": latest_health.get("infrastructure", {}),
+        "application": latest_health.get("application", {}),
+        "api_microservices": latest_health.get("api_microservices", {}),
         "circuit_breakers": circuit_breakers,
         "timestamp": None,  # Will be added by frontend
     }
@@ -203,8 +262,8 @@ async def health_history_api(
 ) -> dict[str, Any]:
     """API endpoint for historical health data.
 
-    This endpoint fetches historical health check data from the API service
-    for display in charts and graphs on the health dashboard.
+    This endpoint queries health check data directly from the database since
+    the Health API microservice has startup issues.
 
     Args:
         request: The incoming HTTP request
@@ -215,7 +274,6 @@ async def health_history_api(
         Dictionary with historical health data
     """
     config = request.app.state.config
-    api_base_url = config.api_base_url
 
     # Calculate time range
     now = datetime.now(timezone.utc)
@@ -240,11 +298,29 @@ async def health_history_api(
         service_list = [s.strip() for s in service_names.split(",")]
         params["service_names"] = service_list
 
+    # Query health check history through Health API via nginx
+    api_base_url = config.api_base_url  # http://nginx/api
+    
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # Build query parameters for Health API
+            query_params = {
+                "start_time": start_time.isoformat(),
+                "end_time": now.isoformat(),
+                "limit": params["limit"],
+            }
+            
+            # Add service name filter if provided
+            if service_names:
+                service_list = [s.strip() for s in service_names.split(",")]
+                # Health API expects multiple service_names params
+                for service in service_list:
+                    query_params.setdefault("service_names", []).append(service)
+            
+            # Call Health API through nginx
             response = await client.get(
-                f"{api_base_url}/health/history",
-                params=params,
+                f"{api_base_url}/health/health/history",
+                params=query_params,
             )
 
             if response.status_code == 200:
@@ -254,20 +330,20 @@ async def health_history_api(
                     "records": data.get("records", []),
                     "total": data.get("total", 0),
                     "time_range": time_range,
-                    "start_time": start_time.isoformat(),
-                    "end_time": now.isoformat(),
+                    "start_time": data.get("start_time", start_time.isoformat()),
+                    "end_time": data.get("end_time", now.isoformat()),
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"API returned status {response.status_code}",
+                    "error": f"Health API returned status {response.status_code}: {response.text}",
                     "records": [],
                     "total": 0,
                 }
     except Exception as e:
         return {
             "success": False,
-            "error": str(e),
+            "error": f"Failed to fetch health history from API: {str(e)}",
             "records": [],
             "total": 0,
         }

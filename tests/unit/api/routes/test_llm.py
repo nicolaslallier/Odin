@@ -133,10 +133,13 @@ class TestLLMRoutes:
 
 def test_llm_app_import_and_init():
     """Smoke test that imports and initializes the LLM FastAPI app (ensures coverage)."""
-    from src.api.apps.llm_app import create_app
-    app = create_app()
+    import src.api.apps.llm_app
+    import src.api.routes.llm
+    import src.api.services.llm_analysis_service
+    import src.api.services.llm_prompts
+    import src.api.services.ollama
+    app = src.api.apps.llm_app.create_app()
     assert app is not None
-    # Optionally test app wiring:
     from fastapi.testclient import TestClient
     client = TestClient(app)
     # Just hit the OpenAPI or root path – this ensures app is loaded

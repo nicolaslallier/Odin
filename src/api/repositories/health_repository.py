@@ -64,16 +64,18 @@ class HealthRepository:
         self.session = session
 
     async def insert_health_checks(
-        self, checks: list[HealthCheckRecord], timestamp: datetime
+        self, checks: list[HealthCheckRecord], timestamp: datetime, correlation_id: str | None = None
     ) -> int:
         """Insert batch of health check records into TimescaleDB.
 
         This method performs a batch insert of health check records with the
-        provided timestamp, optimizing for write performance.
+        provided timestamp, optimizing for write performance. Optionally includes
+        correlation_id in metadata for tracking health check runs.
 
         Args:
             checks: List of health check records to insert
             timestamp: Timestamp to use for all records
+            correlation_id: Optional correlation ID for tracking this health check run
 
         Returns:
             Number of records inserted
@@ -83,25 +85,34 @@ class HealthRepository:
 
         Example:
             >>> checks = [HealthCheckRecord(...), HealthCheckRecord(...)]
-            >>> count = await repo.insert_health_checks(checks, datetime.now())
+            >>> count = await repo.insert_health_checks(
+            ...     checks, datetime.now(), correlation_id="550e8400-e29b-41d4-a716-446655440000"
+            ... )
         """
         if not checks:
             return 0
 
         try:
             # Prepare batch insert values
-            values = [
-                {
-                    "timestamp": timestamp,
-                    "service_name": check.service_name,
-                    "service_type": check.service_type,
-                    "is_healthy": check.is_healthy,
-                    "response_time_ms": check.response_time_ms,
-                    "error_message": check.error_message,
-                    "metadata": check.metadata,
-                }
-                for check in checks
-            ]
+            values = []
+            for check in checks:
+                # Merge correlation_id into metadata
+                metadata = check.metadata.copy()
+                if correlation_id:
+                    metadata["correlation_id"] = correlation_id
+                    metadata["run_timestamp"] = timestamp.isoformat()
+                
+                values.append(
+                    {
+                        "timestamp": timestamp,
+                        "service_name": check.service_name,
+                        "service_type": check.service_type,
+                        "is_healthy": check.is_healthy,
+                        "response_time_ms": check.response_time_ms,
+                        "error_message": check.error_message,
+                        "metadata": metadata,
+                    }
+                )
 
             # Execute batch insert
             stmt = insert(service_health_checks_table).values(values)

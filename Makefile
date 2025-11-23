@@ -215,9 +215,10 @@ down:
 
 # Restart all containers
 restart:
-	@echo "$(YELLOW)Restarting all containers...$(NC)"
-	@$(DOCKER_COMPOSE) restart
-	@echo "$(GREEN)✓ Containers restarted!$(NC)"
+	@echo "$(YELLOW)Restarting all containers (full cycle: down, then up with all profiles)...$(NC)"
+	@$(DOCKER_COMPOSE) down
+	@$(DOCKER_COMPOSE) --profile all up -d
+	@echo "$(GREEN)✓ Containers fully restarted!$(NC)"
 
 # Show running containers
 ps:

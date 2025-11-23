@@ -9,8 +9,9 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Header, Query, Request, status
 
+from src.api.logging_config import get_logger
 from src.api.models.schemas import (
     HealthCheckBatchRequest,
     HealthCheckHistoryResponse,
@@ -161,21 +162,25 @@ async def get_circuit_breaker_states() -> dict[str, str]:
 async def record_health_checks(
     request: HealthCheckBatchRequest,
     repository: HealthRepository = Depends(get_health_repository),
+    correlation_id: str | None = Header(None, alias="X-Correlation-ID"),
 ) -> HealthCheckRecordResponse:
     """Record batch of health check data to TimescaleDB.
 
     This endpoint receives health check data from the worker and stores it
     in the TimescaleDB hypertable for historical analysis and monitoring.
+    Accepts optional X-Correlation-ID header for tracking health check runs.
 
     Args:
         request: Batch health check request with checks and optional timestamp
         repository: Health repository for database operations
+        correlation_id: Optional correlation ID from X-Correlation-ID header for tracking
 
     Returns:
         Response indicating number of records stored
 
     Example:
         >>> POST /health/record
+        >>> Headers: X-Correlation-ID: 550e8400-e29b-41d4-a716-446655440000
         >>> {
         >>>   "checks": [
         >>>     {
@@ -187,22 +192,55 @@ async def record_health_checks(
         >>>   ]
         >>> }
     """
+    # Initialize logger with correlation ID for tracking
+    logger = get_logger(__name__, correlation_id=correlation_id)
+    
     # Use provided timestamp or current time
     if request.timestamp:
         timestamp = datetime.fromisoformat(request.timestamp.replace("Z", "+00:00"))
     else:
         timestamp = datetime.now(timezone.utc)
 
-    # Insert health checks into database
-    recorded_count = await repository.insert_health_checks(
-        checks=request.checks, timestamp=timestamp
+    logger.info(
+        "Recording health checks to TimescaleDB",
+        extra={
+            "correlation_id": correlation_id,
+            "check_count": len(request.checks),
+            "timestamp": timestamp.isoformat(),
+        },
     )
 
-    return HealthCheckRecordResponse(
-        recorded=recorded_count,
-        timestamp=timestamp.isoformat(),
-        message="Health checks recorded successfully",
-    )
+    try:
+        # Insert health checks into database with correlation_id
+        recorded_count = await repository.insert_health_checks(
+            checks=request.checks, timestamp=timestamp, correlation_id=correlation_id
+        )
+
+        logger.info(
+            "Health checks recorded successfully",
+            extra={
+                "correlation_id": correlation_id,
+                "recorded_count": recorded_count,
+                "timestamp": timestamp.isoformat(),
+            },
+        )
+
+        return HealthCheckRecordResponse(
+            recorded=recorded_count,
+            timestamp=timestamp.isoformat(),
+            message="Health checks recorded successfully",
+        )
+    except Exception as e:
+        logger.error(
+            "Failed to record health checks",
+            extra={
+                "correlation_id": correlation_id,
+                "error": str(e),
+                "check_count": len(request.checks),
+            },
+            exc_info=True,
+        )
+        raise
 
 
 @router.get("/health/history", response_model=HealthCheckHistoryResponse)
@@ -286,3 +324,21 @@ async def get_latest_health(
         services=services,
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
+
+
+@router.get("/health/status/latest")
+async def get_latest_health_status(
+    repository: HealthRepository = Depends(get_health_repository),
+) -> dict[str, bool]:
+    """Get the latest health status for all services (simpler format for micro-frontend).
+
+    This endpoint provides a simplified version of the latest health status
+    optimized for the health micro-frontend dashboard.
+
+    Args:
+        repository: Health repository for database operations
+
+    Returns:
+        Dictionary mapping service name to health status
+    """
+    return await repository.get_latest_health_status()

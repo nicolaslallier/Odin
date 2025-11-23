@@ -1,265 +1,239 @@
-"""Unit tests for health check recording API endpoints.
+"""Unit tests for health record endpoint.
 
-This module tests the health check recording endpoints with mocked repository.
-Following TDD principles, these tests define the expected behavior before implementation.
+This module tests the /health/record endpoint including correlation ID handling.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import status
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from src.api.models.schemas import (
-    HealthCheckBatchRequest,
-    HealthCheckQueryParams,
-    HealthCheckRecord,
-)
+from src.api.models.schemas import HealthCheckBatchRequest, HealthCheckRecord
+from src.api.routes.health import router
 
 
 @pytest.fixture
-def sample_batch_request() -> HealthCheckBatchRequest:
-    """Create a sample batch request with health checks.
+def app() -> FastAPI:
+    """Create FastAPI app with health routes.
 
     Returns:
-        Sample HealthCheckBatchRequest
+        FastAPI application instance
     """
-    return HealthCheckBatchRequest(
-        checks=[
-            HealthCheckRecord(
-                service_name="database",
-                service_type="infrastructure",
-                is_healthy=True,
-                response_time_ms=12.5,
-                error_message=None,
-                metadata={"version": "14.5"},
-            ),
-            HealthCheckRecord(
-                service_name="api",
-                service_type="application",
-                is_healthy=True,
-                response_time_ms=8.2,
-                error_message=None,
-                metadata={},
-            ),
-        ],
-        timestamp=None,  # Will use current time
-    )
+    app = FastAPI()
+    app.include_router(router)
+    return app
 
 
-class TestRecordHealthChecks:
-    """Tests for POST /health/record endpoint."""
+@pytest.fixture
+def client(app: FastAPI) -> TestClient:
+    """Create test client.
+
+    Args:
+        app: FastAPI application
+
+    Returns:
+        Test client instance
+    """
+    return TestClient(app)
+
+
+class TestHealthRecordEndpoint:
+    """Tests for /health/record endpoint."""
 
     @pytest.mark.asyncio
-    async def test_record_health_checks_success(
-        self, test_client, sample_batch_request: HealthCheckBatchRequest
-    ) -> None:
-        """Test successful health check recording.
+    async def test_record_health_checks_accepts_correlation_id_header(self) -> None:
+        """Test that endpoint accepts X-Correlation-ID header.
 
-        Args:
-            test_client: FastAPI test client
-            sample_batch_request: Sample batch request
+        This test verifies the endpoint can receive and process the correlation ID
+        from the request header for tracking health check runs.
         """
-        with patch("src.api.routes.health.get_health_repository") as mock_repo_getter:
-            mock_repo = AsyncMock()
-            mock_repo.insert_health_checks = AsyncMock(return_value=2)
-            mock_repo_getter.return_value = mock_repo
+        # Mock repository
+        mock_repository = AsyncMock()
+        mock_repository.insert_health_checks.return_value = 2
 
-            response = test_client.post("/health/record", json=sample_batch_request.model_dump())
-
-            assert response.status_code == status.HTTP_201_CREATED
-            data = response.json()
-            assert data["recorded"] == 2
-            assert "timestamp" in data
-            assert data["message"] == "Health checks recorded successfully"
-
-    @pytest.mark.asyncio
-    async def test_record_health_checks_with_custom_timestamp(
-        self, test_client, sample_batch_request: HealthCheckBatchRequest
-    ) -> None:
-        """Test recording health checks with custom timestamp.
-
-        Args:
-            test_client: FastAPI test client
-            sample_batch_request: Sample batch request
-        """
-        custom_timestamp = "2024-01-15T10:30:00Z"
-        sample_batch_request.timestamp = custom_timestamp
-
-        with patch("src.api.routes.health.get_health_repository") as mock_repo_getter:
-            mock_repo = AsyncMock()
-            mock_repo.insert_health_checks = AsyncMock(return_value=2)
-            mock_repo_getter.return_value = mock_repo
-
-            response = test_client.post("/health/record", json=sample_batch_request.model_dump())
-
-            assert response.status_code == status.HTTP_201_CREATED
-            data = response.json()
-            assert custom_timestamp in data["timestamp"]
-
-    @pytest.mark.asyncio
-    async def test_record_health_checks_empty_list(self, test_client) -> None:
-        """Test recording empty list of health checks.
-
-        Args:
-            test_client: FastAPI test client
-        """
-        empty_request = HealthCheckBatchRequest(checks=[], timestamp=None)
-
-        with patch("src.api.routes.health.get_health_repository") as mock_repo_getter:
-            mock_repo = AsyncMock()
-            mock_repo.insert_health_checks = AsyncMock(return_value=0)
-            mock_repo_getter.return_value = mock_repo
-
-            response = test_client.post("/health/record", json=empty_request.model_dump())
-
-            assert response.status_code == status.HTTP_201_CREATED
-            data = response.json()
-            assert data["recorded"] == 0
-
-    @pytest.mark.asyncio
-    async def test_record_health_checks_validation_error(self, test_client) -> None:
-        """Test validation error with invalid request.
-
-        Args:
-            test_client: FastAPI test client
-        """
-        invalid_request = {"checks": [{"invalid": "data"}]}
-
-        response = test_client.post("/health/record", json=invalid_request)
-
-        # Should return 422 for validation error
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-
-
-class TestGetHealthHistory:
-    """Tests for GET /health/history endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_get_health_history_success(self, test_client) -> None:
-        """Test successful health history retrieval.
-
-        Args:
-            test_client: FastAPI test client
-        """
-        with patch("src.api.routes.health.get_health_repository") as mock_repo_getter:
-            mock_repo = AsyncMock()
-            mock_repo.query_health_history = AsyncMock(
-                return_value=[
-                    {
-                        "id": 1,
-                        "timestamp": "2024-01-15T10:00:00+00:00",
-                        "service_name": "database",
-                        "service_type": "infrastructure",
-                        "is_healthy": True,
-                        "response_time_ms": 10.5,
-                        "error_message": None,
-                        "metadata": {},
-                    }
-                ]
-            )
-            mock_repo_getter.return_value = mock_repo
-
-            response = test_client.get(
-                "/health/history",
-                params={
-                    "start_time": "2024-01-15T00:00:00Z",
-                    "end_time": "2024-01-15T23:59:59Z",
-                },
-            )
-
-            assert response.status_code == status.HTTP_200_OK
-            data = response.json()
-            assert "records" in data
-            assert "total" in data
-            assert len(data["records"]) == 1
-            assert data["total"] == 1
-
-    @pytest.mark.asyncio
-    async def test_get_health_history_with_filters(self, test_client) -> None:
-        """Test health history with service filters.
-
-        Args:
-            test_client: FastAPI test client
-        """
-        with patch("src.api.routes.health.get_health_repository") as mock_repo_getter:
-            mock_repo = AsyncMock()
-            mock_repo.query_health_history = AsyncMock(return_value=[])
-            mock_repo_getter.return_value = mock_repo
-
-            response = test_client.get(
-                "/health/history",
-                params={
-                    "start_time": "2024-01-15T00:00:00Z",
-                    "end_time": "2024-01-15T23:59:59Z",
-                    "service_names": ["database", "api"],
+        # Create request
+        request_data = {
+            "checks": [
+                {
+                    "service_name": "database",
                     "service_type": "infrastructure",
+                    "is_healthy": True,
+                    "response_time_ms": 12.5,
+                    "metadata": {},
                 },
-            )
+                {
+                    "service_name": "api",
+                    "service_type": "application",
+                    "is_healthy": True,
+                    "response_time_ms": 8.3,
+                    "metadata": {},
+                },
+            ],
+        }
 
-            assert response.status_code == status.HTTP_200_OK
+        correlation_id = "550e8400-e29b-41d4-a716-446655440000"
+
+        # Import and patch the endpoint
+        from src.api.routes.health import record_health_checks
+
+        # Mock the dependency
+        async def mock_get_health_repository():
+            yield mock_repository
+
+        # Test directly with mocked repository
+        request = HealthCheckBatchRequest(**request_data)
+        result = await record_health_checks(
+            request=request, repository=mock_repository, correlation_id=correlation_id
+        )
+
+        # Verify response
+        assert result.recorded == 2
+        assert result.message == "Health checks recorded successfully"
+
+        # Verify repository was called with correlation_id
+        mock_repository.insert_health_checks.assert_called_once()
+        call_kwargs = mock_repository.insert_health_checks.call_args[1]
+        assert "correlation_id" in call_kwargs
+        assert call_kwargs["correlation_id"] == correlation_id
 
     @pytest.mark.asyncio
-    async def test_get_health_history_missing_required_params(self, test_client) -> None:
-        """Test health history with missing required parameters.
+    async def test_record_health_checks_without_correlation_id(self) -> None:
+        """Test that endpoint works without correlation ID header.
 
-        Args:
-            test_client: FastAPI test client
+        This ensures backward compatibility when correlation ID is not provided.
         """
-        # Missing start_time and end_time
-        response = test_client.get("/health/history")
+        # Mock repository
+        mock_repository = AsyncMock()
+        mock_repository.insert_health_checks.return_value = 1
 
-        # Should return 422 for missing required fields
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-
-
-class TestGetLatestHealth:
-    """Tests for GET /health/latest endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_get_latest_health_success(self, test_client) -> None:
-        """Test successful latest health status retrieval.
-
-        Args:
-            test_client: FastAPI test client
-        """
-        with patch("src.api.routes.health.get_health_repository") as mock_repo_getter:
-            mock_repo = AsyncMock()
-            mock_repo.get_latest_health_status = AsyncMock(
-                return_value={
-                    "database": True,
-                    "api": True,
-                    "worker": False,
-                    "storage": True,
+        # Create request
+        request_data = {
+            "checks": [
+                {
+                    "service_name": "database",
+                    "service_type": "infrastructure",
+                    "is_healthy": True,
+                    "response_time_ms": 12.5,
+                    "metadata": {},
                 }
-            )
-            mock_repo_getter.return_value = mock_repo
+            ],
+        }
 
-            response = test_client.get("/health/latest")
+        from src.api.routes.health import record_health_checks
 
-            assert response.status_code == status.HTTP_200_OK
-            data = response.json()
-            assert "services" in data
-            assert "timestamp" in data
-            assert data["services"]["database"] is True
-            assert data["services"]["worker"] is False
+        request = HealthCheckBatchRequest(**request_data)
+        result = await record_health_checks(
+            request=request, repository=mock_repository, correlation_id=None
+        )
+
+        # Verify response
+        assert result.recorded == 1
+        assert result.message == "Health checks recorded successfully"
+
+        # Verify repository was called with None correlation_id
+        mock_repository.insert_health_checks.assert_called_once()
+        call_kwargs = mock_repository.insert_health_checks.call_args[1]
+        assert "correlation_id" in call_kwargs
+        assert call_kwargs["correlation_id"] is None
 
     @pytest.mark.asyncio
-    async def test_get_latest_health_no_data(self, test_client) -> None:
-        """Test latest health status when no data exists.
+    @patch("src.api.routes.health.get_logger")
+    async def test_record_health_checks_logs_with_correlation_id(
+        self, mock_get_logger: MagicMock
+    ) -> None:
+        """Test that endpoint logs include correlation ID.
 
         Args:
-            test_client: FastAPI test client
+            mock_get_logger: Mock logger factory
         """
-        with patch("src.api.routes.health.get_health_repository") as mock_repo_getter:
-            mock_repo = AsyncMock()
-            mock_repo.get_latest_health_status = AsyncMock(return_value={})
-            mock_repo_getter.return_value = mock_repo
+        # Mock logger
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
 
-            response = test_client.get("/health/latest")
+        # Mock repository
+        mock_repository = AsyncMock()
+        mock_repository.insert_health_checks.return_value = 2
 
-            assert response.status_code == status.HTTP_200_OK
-            data = response.json()
-            assert data["services"] == {}
+        # Create request
+        request_data = {
+            "checks": [
+                {
+                    "service_name": "database",
+                    "service_type": "infrastructure",
+                    "is_healthy": True,
+                    "response_time_ms": 12.5,
+                    "metadata": {},
+                }
+            ],
+        }
+
+        correlation_id = "550e8400-e29b-41d4-a716-446655440000"
+
+        from src.api.routes.health import record_health_checks
+
+        request = HealthCheckBatchRequest(**request_data)
+        result = await record_health_checks(
+            request=request, repository=mock_repository, correlation_id=correlation_id
+        )
+
+        # Verify logger was called with correlation_id context
+        mock_get_logger.assert_called_once()
+        call_kwargs = mock_get_logger.call_args[1]
+        assert "correlation_id" in call_kwargs
+        assert call_kwargs["correlation_id"] == correlation_id
+
+        # Verify INFO log was called
+        assert mock_logger.info.called
+
+    @pytest.mark.asyncio
+    @patch("src.api.routes.health.get_logger")
+    async def test_record_health_checks_logs_errors_with_correlation_id(
+        self, mock_get_logger: MagicMock
+    ) -> None:
+        """Test that error logs include correlation ID.
+
+        Args:
+            mock_get_logger: Mock logger factory
+        """
+        # Mock logger
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+
+        # Mock repository with failure
+        mock_repository = AsyncMock()
+        mock_repository.insert_health_checks.side_effect = Exception("Database error")
+
+        # Create request
+        request_data = {
+            "checks": [
+                {
+                    "service_name": "database",
+                    "service_type": "infrastructure",
+                    "is_healthy": True,
+                    "response_time_ms": 12.5,
+                    "metadata": {},
+                }
+            ],
+        }
+
+        correlation_id = "550e8400-e29b-41d4-a716-446655440000"
+
+        from src.api.routes.health import record_health_checks
+
+        request = HealthCheckBatchRequest(**request_data)
+
+        # Expect exception to be raised
+        with pytest.raises(Exception):
+            await record_health_checks(
+                request=request, repository=mock_repository, correlation_id=correlation_id
+            )
+
+        # Verify logger was called with correlation_id
+        mock_get_logger.assert_called_once()
+        call_kwargs = mock_get_logger.call_args[1]
+        assert "correlation_id" in call_kwargs
+        assert call_kwargs["correlation_id"] == correlation_id

@@ -1,49 +1,72 @@
+🚀 Odin v2.0.0: Micro-Frontend Architecture!
+Complete architectural transformation with React micro-frontends using Webpack Module Federation.
+Independent development and deployment of UI components alongside Python microservices.
+
 # Odin
 
-![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
+![Node](https://img.shields.io/badge/node-20.x-green.svg)
+![React](https://img.shields.io/badge/react-18.2-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Tests](https://img.shields.io/badge/tests-131%20passed-brightgreen.svg)
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)
+![Architecture](https://img.shields.io/badge/architecture-micro--frontends-orange.svg)
 
-A Python project following Test-Driven Development (TDD), SOLID principles, and industry best practices with comprehensive testing and Docker containerization.
+A full-stack platform following Test-Driven Development (TDD), SOLID principles, and micro-frontend architecture with comprehensive testing and Docker containerization.
 
 ---
 
-## 🚨 NEW in v1.6.0
+## 🎉 NEW in v2.0.0 - Major Release
 
-- **Confluence Cloud Integration**: Async statistics & analytics for any space, page-to-markdown, automatic backups, LLM-powered summaries
-- **HashiCorp Vault Secrets**: Secure credential management for Confluence, Jira, and more
-- **PostgreSQL 18 (TimescaleDB)**: Historical time-series analytics for all Confluence statistics
+### Micro-Frontend Architecture
+- **Portal Shell Application**: New React-based portal with authentication and dynamic MFE loading
+- **Module Federation**: Runtime code sharing via Webpack 5 for independent micro-frontends
+- **Health Monitoring MFE**: Complete React application with real-time dashboards and charts
+- **Shared Component Library**: TypeScript types, React components, hooks, and utilities
+- **Direct Database Access**: Each microservice owns its data schema
+- **Multi-Stage Build**: Node.js frontend build + Python runtime in Docker
 
-_Read [RELEASE_NOTES_v1.6.0.md](RELEASE_NOTES_v1.6.0.md) and [CONFLUENCE_GUIDE.md](CONFLUENCE_GUIDE.md) for details_
+### Documentation
+- 📚 **[MICROFRONTEND_ARCHITECTURE.md](MICROFRONTEND_ARCHITECTURE.md)** - Complete architecture guide
+- 🛠️ **[FRONTEND_DEVELOPMENT_GUIDE.md](FRONTEND_DEVELOPMENT_GUIDE.md)** - Developer workflow
+- 📝 **[RELEASE_NOTES_v2.0.0.md](RELEASE_NOTES_v2.0.0.md)** - Migration guide and details
+- ✅ **[IMPLEMENTATION_SUMMARY_v2.0.0.md](IMPLEMENTATION_SUMMARY_v2.0.0.md)** - What's implemented
 
 ---
 
 ## Overview
 
-Odin is a Python development environment configured for senior-level development practices, emphasizing:
+Odin is a full-stack data platform configured for enterprise-level development practices, emphasizing:
 
+- **Micro-Frontend Architecture**: Independent React applications with Module Federation
 - **Test-Driven Development (TDD)**: Write tests first, then implement
 - **SOLID Principles**: Clean, maintainable, and extensible code architecture
-- **High Test Coverage**: 100% coverage for web portal (54 tests) and complete worker test suite (77 tests)
+- **Type Safety**: TypeScript for frontend, Python type hints for backend
 - **Docker Containerization**: Consistent development and deployment environments
 - **Code Quality**: Automated linting, formatting, and type checking
 
 ## Features
 
-- **Internal API Service**: FastAPI-based REST API with PostgreSQL, MinIO, RabbitMQ, Vault, and Ollama integrations
-- **Web Interface**: Modern FastAPI-based web application with Jinja2 templates
-- **Database Management Portal (v1.5.0)**: Comprehensive PostgreSQL administration directly from the web UI
-- **Image Analysis** (v1.3.0): Upload images and analyze with vision-capable LLM models (LLaVA)
-- **Centralized Logging** (v1.2.0): PostgreSQL timeseries storage with LLM-powered log analysis and real-time web viewer
-- **Worker Service**: Celery-based background task processing with scheduled, batch, and event-driven tasks
-- **Task Monitoring**: Flower dashboard for real-time task monitoring and inspection
-- **MinIO File Manager (v1.4.0)**: Modern web UI for file upload, browse, preview, download, delete (see below)
-- Python 3.12 development environment
-- Multi-service Docker infrastructure (nginx, PostgreSQL, RabbitMQ, MinIO, Vault, Ollama, n8n, Celery Worker, Beat, Flower)
-- Comprehensive testing framework (pytest with coverage)
-- Docker-based development workflow
+### Frontend (v2.0+)
+- **Portal Shell Application**: React 18 + TypeScript with authentication and routing
+- **Health Monitoring MFE**: Real-time dashboards, historical charts, service details
+- **Shared Component Library**: Reusable UI components, hooks, and utilities
+- **Module Federation**: Dynamic loading of micro-frontends at runtime
+- **Type-Safe APIs**: Full TypeScript definitions for all backend contracts
+
+### Backend (Microservices)
+- **9 API Microservices**: FastAPI-based with independent scaling and deployment
+  - Health, Data, Confluence, Files, LLM, Logs, Secrets, Messages, Image Analysis
+- **Direct Database Access**: Each service owns its data schema (PostgreSQL/TimescaleDB)
+- **Worker Service**: Celery-based background tasks with Flower monitoring
+- **Infrastructure**: nginx, PostgreSQL, RabbitMQ, MinIO, Vault, Ollama, n8n
+
+### Platform Features
+- **Database Management Portal (v1.5.0)**: PostgreSQL administration from web UI
+- **Image Analysis** (v1.3.0): Vision-capable LLM models (LLaVA)
+- **Centralized Logging** (v1.2.0): Timeseries storage with LLM-powered analysis
+- **MinIO File Manager (v1.4.0)**: Complete file management interface
+- **Confluence Integration** (v1.6.0): Statistics, backups, LLM summaries
+- **Comprehensive Testing**: pytest (Python) + Jest (React) with high coverage
 - Enhanced Makefile with service management
 - Type checking with mypy
 - Code formatting with black

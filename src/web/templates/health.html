@@ -467,6 +467,25 @@
         </div>
     </div>
 
+    <!-- API Microservices Section -->
+    {% if api_microservices %}
+    <div class="section">
+        <h2 class="section-title">API Microservices</h2>
+        <div class="service-grid" id="api-microservices-grid">
+            {% for service, healthy in api_microservices.items() %}
+            <div class="service-card {{ 'healthy' if healthy else 'unhealthy' }}" data-service="{{ service }}" data-category="api-microservice">
+                <div class="service-header">
+                    <span class="service-name">{{ service }}</span>
+                    <span class="status-badge {{ 'healthy' if healthy else 'unhealthy' }}">
+                        {{ 'Healthy' if healthy else 'Unhealthy' }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Circuit Breakers Section -->
     <div class="section">
         <h2 class="section-title">Circuit Breakers</h2>

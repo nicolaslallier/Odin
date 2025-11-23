@@ -29,3 +29,7 @@ def create_app(config: APIConfig | None = None) -> FastAPI:
 
     return app
 
+
+# Create module-level app instance for uvicorn import string
+app = create_app()
+
