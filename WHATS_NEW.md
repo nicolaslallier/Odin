@@ -1,4 +1,59 @@
-# 🎉 What's New - Optimization Release
+# 🎉 What's New in Odin
+
+## Version 1.5.0 - Database Management Portal (November 2025)
+
+### 🗄️ PostgreSQL Database Management
+
+**Full-featured database administration directly in the web portal!**
+
+#### Key Features
+
+- **Tables Browser**: View all tables with schema, row counts, and sizes
+- **SQL Query Editor**: Execute queries with real-time validation and safety checks
+- **Data Explorer**: Browse table data with pagination and search
+- **Statistics Dashboard**: Database size, version, connections, table count
+- **Query History**: Automatic logging with re-run capability
+- **Data Export**: Export results as CSV or JSON
+- **Safety First**: SQL injection protection and destructive query confirmation
+
+#### Quick Start
+
+1. Navigate to **Database** in the portal navigation
+2. Browse tables or write SQL queries
+3. View stats and check query history
+
+#### Technical Details
+
+- **Backend**: `DatabaseManagementService`, `QueryHistoryRepository`
+- **Frontend**: Tabbed interface with responsive design
+- **Security**: Parameterized queries, destructive operation confirmation
+- **Testing**: 1500+ lines of unit, integration, and regression tests
+
+**See**: [RELEASE_NOTES_v1.5.0.md](RELEASE_NOTES_v1.5.0.md)
+
+---
+
+## Previous Releases
+
+### Version 1.4.0 - MinIO File Manager
+
+Modern web UI for object storage management with upload, browse, preview, download, and delete capabilities.
+
+### Version 1.3.0 - Image Analysis
+
+LLaVA-powered image analysis with file upload and LLM processing.
+
+### Version 1.2.0 - Centralized Logging
+
+PostgreSQL-backed logging system with LLM-powered analysis and web viewer.
+
+### Version 1.0.0 - Optimization Release
+
+Circuit breakers, caching, retry mechanisms, and comprehensive testing.
+
+---
+
+# Optimization Release Details
 
 ## Overview
 

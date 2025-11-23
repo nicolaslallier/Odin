@@ -16,6 +16,7 @@ hvac>=2.1.0                 # Vault client
 httpx>=0.27.0               # HTTP client for Ollama
 pydantic-settings>=2.1.0    # Settings management
 python-multipart>=0.0.6     # File uploads
+sqlparse>=0.4.4             # SQL parsing and validation
 
 # Celery worker dependencies
 celery[sqlalchemy]>=5.3.0   # Celery with SQLAlchemy result backend

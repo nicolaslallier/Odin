@@ -9,7 +9,8 @@ import sys
 class DummyRecord:
     def __init__(self, **fields):
         self.__dict__.update(fields)
-        self.created = 1234567890
+        self.created = 1234567890.123
+        self.msecs = 123.0
         self.levelname = "INFO"
         self.name = "test_logger"
         self.module = "mod"
@@ -17,6 +18,11 @@ class DummyRecord:
         self.lineno = 99
         self.getMessage = lambda: "msg"
         self.exc_info = None
+        self.relativeCreated = 0.0
+        self.thread = 0
+        self.threadName = "MainThread"
+        self.processName = "MainProcess"
+        self.process = 0
     
     def __getattr__(self, item):
         return self.__dict__.get(item, None)
@@ -125,7 +131,7 @@ def test_database_log_handler_flush_worker_and_flush_buffer(monkeypatch):
 def test_database_log_handler_insert_logs(monkeypatch):
     handler = DatabaseLogHandler("dsn", "svc", buffer_size=2)
     handler._engine = MagicMock()
-    records = [{"timestamp": logging.Formatter().formatTime(logging.LogRecord("n", logging.INFO, "p", 99, "msg", (), None)),
+    records = [{"timestamp": "2025-01-01T00:00:00Z",
                 "level": "INFO", "service": "svc", "logger": "l", "message": "m", "module": "m", "function": "f", "line": 1, "exception": None,
                 "request_id": None, "task_id": None, "user_id": None, "metadata": {}}]
     # Patch _get_engine

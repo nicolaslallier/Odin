@@ -2,6 +2,10 @@
 
 **Release Date:** November 22, 2025
 
+> For general features and setup, see the main [README.md](README.md). This release and tag (`v1.4.0`) have been published and all live documentation reflects the new version. All version numbers, navigation menus, and UI badges now display 1.4.0.
+
+---
+
 ## New Features
 
 ### MinIO File Manager

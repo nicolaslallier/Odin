@@ -1,6 +1,6 @@
 # Odin
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Tests](https://img.shields.io/badge/tests-131%20passed-brightgreen.svg)
@@ -22,10 +22,12 @@ Odin is a Python development environment configured for senior-level development
 
 - **Internal API Service**: FastAPI-based REST API with PostgreSQL, MinIO, RabbitMQ, Vault, and Ollama integrations
 - **Web Interface**: Modern FastAPI-based web application with Jinja2 templates
+- **Database Management Portal (v1.5.0)**: Comprehensive PostgreSQL administration directly from the web UI
 - **Image Analysis** (v1.3.0): Upload images and analyze with vision-capable LLM models (LLaVA)
 - **Centralized Logging** (v1.2.0): PostgreSQL timeseries storage with LLM-powered log analysis and real-time web viewer
 - **Worker Service**: Celery-based background task processing with scheduled, batch, and event-driven tasks
 - **Task Monitoring**: Flower dashboard for real-time task monitoring and inspection
+- **MinIO File Manager (v1.4.0)**: Modern web UI for file upload, browse, preview, download, delete (see below)
 - Python 3.12 development environment
 - Multi-service Docker infrastructure (nginx, PostgreSQL, RabbitMQ, MinIO, Vault, Ollama, n8n, Celery Worker, Beat, Flower)
 - Comprehensive testing framework (pytest with coverage)
@@ -36,18 +38,43 @@ Odin is a Python development environment configured for senior-level development
 - Linting with ruff
 - 100% test coverage enforcement
 
-## 🎉 Version 1.3.0 - Image Analysis
+## 🎉 Version 1.5.0 - Database Management Portal
 
-**NEW**: Upload and analyze images with vision-capable LLM models!
+**NEW:** Comprehensive PostgreSQL database management directly in the web portal!
 
-- **📸 Image Upload**: Support for JPEG, PNG, WebP, and GIF formats
-- **🤖 LLM Vision**: Analyze images with LLaVA and other vision models
-- **💾 Persistent Storage**: Images in MinIO, metadata in PostgreSQL
-- **🎯 Custom Prompts**: Ask specific questions about image content
-- **⚙️ Configurable**: Choose models, set size limits, customize prompts
-- **🛡️ Robust**: Automatic cleanup on failures, comprehensive error handling
+- **Tables Management**: Browse all tables with schema, row counts, sizes
+- **SQL Query Editor**: Execute queries with syntax validation and destructive operation protection
+- **Data Browsing**: Paginated table data viewing with search and export
+- **Statistics Dashboard**: Database size, version, connections, table count
+- **Query History**: Automatic logging of all queries with re-run capability
+- **Data Export**: Export query results as CSV or JSON
+- **Safety Features**: SQL injection protection, destructive query confirmation
 
-See [IMAGE_ANALYSIS_GUIDE.md](IMAGE_ANALYSIS_GUIDE.md) for complete documentation.
+**Key Components:**
+- **Backend**: `DatabaseManagementService`, `QueryHistoryRepository`
+- **Routes**: `/database/*` endpoints for all operations
+- **Frontend**: Tabbed UI with tables, query editor, statistics, history
+- **Security**: Parameterized queries, destructive operation confirmation
+
+See [RELEASE_NOTES_v1.5.0.md](RELEASE_NOTES_v1.5.0.md) for complete details.
+
+## 🎉 Version 1.4.0 - MinIO File Manager
+
+**NEW:** MinIO File Manager web interface!
+
+- **Upload, browse, preview, download, and delete files** from MinIO object storage
+- **Dual view**: Table view and Grid view
+- **Preview support**: Images (`jpg`, `png`, etc.), text files (`txt`, `json`, ...)
+- **Modern, responsive UI** with clean error handling and loading states
+- **Full API integration** for all file operations (`GET`, `POST`, `DELETE` through `/api/files/`)
+
+**New/modified files:**
+- `src/web/routes/files.py`
+- `src/web/templates/files.html`
+- `src/web/static/js/files.js`
+- `src/web/app.py`, `src/web/templates/base.html`, `src/web/static/css/style.css`, `src/web/routes/home.py`
+
+See [RELEASE_NOTES_v1.4.0.md](RELEASE_NOTES_v1.4.0.md) for details.
 
 ## 🎉 Version 1.2.0 - Centralized Logging System
 

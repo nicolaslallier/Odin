@@ -6,6 +6,7 @@ instances, following the Open/Closed Principle (OCP) from SOLID.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -15,6 +16,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from src.web.config import WebConfig, get_config
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(config: Optional[WebConfig] = None) -> FastAPI:
@@ -60,13 +63,18 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     # Create FastAPI application
     app = FastAPI(
         title="Odin Web Interface",
-        version="1.4.0",
+        version="1.5.0",
         description="A modern web interface for the Odin project, "
         "built with FastAPI and following SOLID principles.",
     )
 
     # Store configuration in app state
     app.state.config = config
+
+    # Create DatabaseService instance
+    from src.api.services.database import DatabaseService
+    db_service = DatabaseService(dsn=config.postgres_dsn)
+    app.state.db_service = db_service
 
     # Configure templates
     templates_dir = Path(__file__).parent / "templates"
@@ -85,6 +93,7 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     from src.web.routes.logs import router as logs_router
     from src.web.routes.image_analyzer import router as image_analyzer_router
     from src.web.routes.files import router as files_router
+    from src.web.routes.database import router as database_router
 
     app.include_router(home_router)
     app.include_router(tasks_router)
@@ -92,6 +101,7 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
     app.include_router(logs_router)
     app.include_router(image_analyzer_router)
     app.include_router(files_router)
+    app.include_router(database_router)
 
     # Add health check endpoint
     @app.get("/health")
@@ -102,6 +112,20 @@ def create_app(config: Optional[WebConfig] = None) -> FastAPI:
             Dictionary with status information
         """
         return {"status": "healthy", "service": "odin-web"}
+
+    # Startup event to initialize database tables
+    @app.on_event("startup")
+    async def startup_event() -> None:
+        """Initialize database tables on startup."""
+        from src.api.repositories.query_history_repository import create_tables
+        
+        logger.info("Creating query_history table if it doesn't exist...")
+        try:
+            # Access db_service from app state
+            await create_tables(app.state.db_service.get_engine())
+            logger.info("Query history table ready")
+        except Exception as e:
+            logger.error(f"Failed to create query_history table: {e}")
 
     return app
 

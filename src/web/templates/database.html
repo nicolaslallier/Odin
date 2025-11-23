@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Odin{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', path='/css/database.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="database-management">
+    <div class="db-header">
+        <div>
+            <h1>Database Management</h1>
+            <p class="last-updated" id="last-updated">Ready</p>
+        </div>
+        <div class="db-header-controls">
+            <button class="btn-primary" id="refresh-btn">
+                <span id="refresh-text">Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="tables">Tables</button>
+        <button class="tab-btn" data-tab="query">Query Editor</button>
+        <button class="tab-btn" data-tab="statistics">Statistics</button>
+        <button class="tab-btn" data-tab="history">History</button>
+    </div>
+
+    <!-- Tables Tab -->
+    <div class="tab-content active" id="tab-tables">
+        <div class="tables-section">
+            <div class="section-header">
+                <h2>Database Tables</h2>
+                <div class="search-box">
+                    <input type="text" id="table-search" placeholder="Search tables..." />
+                </div>
+            </div>
+            <div id="tables-list" class="tables-list">
+                <div class="loading-state">Loading tables...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Query Editor Tab -->
+    <div class="tab-content" id="tab-query">
+        <div class="query-section">
+            <div class="section-header">
+                <h2>SQL Query Editor</h2>
+                <div class="query-actions">
+                    <button class="btn-secondary" id="clear-query-btn">Clear</button>
+                    <button class="btn-primary" id="execute-query-btn">Execute</button>
+                </div>
+            </div>
+            <div class="query-editor">
+                <textarea id="sql-editor" placeholder="Enter your SQL query here...&#10;&#10;Example: SELECT * FROM users LIMIT 10"></textarea>
+            </div>
+            <div class="query-info">
+                <span id="query-validation"></span>
+            </div>
+            <div id="query-results" class="query-results">
+                <div class="empty-state">Execute a query to see results</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Tab -->
+    <div class="tab-content" id="tab-statistics">
+        <div class="statistics-section">
+            <h2>Database Statistics</h2>
+            <div id="stats-container" class="stats-grid">
+                <div class="loading-state">Loading statistics...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Tab -->
+    <div class="tab-content" id="tab-history">
+        <div class="history-section">
+            <div class="section-header">
+                <h2>Query History</h2>
+                <div class="search-box">
+                    <input type="text" id="history-search" placeholder="Search queries..." />
+                </div>
+            </div>
+            <div id="history-list" class="history-list">
+                <div class="loading-state">Loading query history...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal for Destructive Queries -->
+<div id="confirmation-modal" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3>Confirm Destructive Operation</h3>
+            <button class="modal-close" onclick="closeConfirmationModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="warning-text">⚠️ This query will modify or delete data.</p>
+            <p>Are you sure you want to execute this query?</p>
+            <div class="query-preview" id="modal-query-preview"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeConfirmationModal()">Cancel</button>
+            <button class="btn-danger" id="confirm-execute-btn">Execute Anyway</button>
+        </div>
+    </div>
+</div>
+
+<!-- Table Data Modal -->
+<div id="table-data-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="table-modal-title">Table Data</h3>
+            <button class="modal-close" onclick="closeTableDataModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="table-modal-toolbar">
+                <div class="pagination-controls">
+                    <button id="prev-page-btn" class="btn-secondary">Previous</button>
+                    <span id="page-info">Page 1</span>
+                    <button id="next-page-btn" class="btn-secondary">Next</button>
+                </div>
+                <div class="export-controls">
+                    <button class="btn-secondary" onclick="exportTableData('csv')">Export CSV</button>
+                    <button class="btn-secondary" onclick="exportTableData('json')">Export JSON</button>
+                </div>
+            </div>
+            <div id="table-data-container" class="table-data-container">
+                <div class="loading-state">Loading table data...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Table Schema Modal -->
+<div id="table-schema-modal" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3 id="schema-modal-title">Table Schema</h3>
+            <button class="modal-close" onclick="closeSchemaModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="schema-container" class="schema-container">
+                <div class="loading-state">Loading schema...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', path='/js/database.js') }}"></script>
+{% endblock %}
+

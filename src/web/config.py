@@ -35,6 +35,9 @@ class WebConfig(BaseModel):
     api_base_url: str = Field(
         default="http://odin-api:8001", description="Base URL for API service"
     )
+    postgres_dsn: str = Field(
+        default="", description="PostgreSQL connection string for database management"
+    )
 
     model_config = ConfigDict(frozen=True)  # Makes the config immutable
 
@@ -63,6 +66,7 @@ def get_config() -> WebConfig:
         WEB_RELOAD: Auto-reload flag (default: false)
         WEB_LOG_LEVEL: Log level (default: info)
         API_BASE_URL: Base URL for API service (default: http://odin-api:8001)
+        POSTGRES_DSN: PostgreSQL connection string (default: empty)
 
     Returns:
         WebConfig instance with values from environment or defaults
@@ -78,5 +82,6 @@ def get_config() -> WebConfig:
         reload=os.environ.get("WEB_RELOAD", "false").lower() in ("true", "1", "yes"),
         log_level=os.environ.get("WEB_LOG_LEVEL", "info"),
         api_base_url=os.environ.get("API_BASE_URL", "http://odin-api:8001"),
+        postgres_dsn=os.environ.get("POSTGRES_DSN", ""),
     )
 
