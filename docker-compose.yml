@@ -54,13 +54,16 @@ services:
           memory: 128M
     restart: unless-stopped
 
-  # API service (internal only, not exposed via nginx)
-  api:
+  # API Microservices (internal only, not exposed directly via nginx)
+  # Each service handles a specific domain and can be independently scaled/shut down
+  
+  # Confluence API microservice
+  api-confluence:
     build:
       context: .
       dockerfile: Dockerfile
       target: development
-    container_name: odin-api
+    container_name: odin-api-confluence
     volumes:
       - .:/app
       - /app/.venv
@@ -68,7 +71,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - API_HOST=${API_HOST:-0.0.0.0}
-      - API_PORT=${API_PORT:-8001}
+      - API_PORT=8001
       - API_RELOAD=${API_RELOAD:-true}
       - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
       - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
@@ -84,8 +87,9 @@ services:
       - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
       - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
       - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
     working_dir: /app
-    command: python -m src.api
+    command: python -m src.api.apps.__main__confluence__
     networks:
       - odin-network
     depends_on:
@@ -95,7 +99,7 @@ services:
       - minio
       - ollama
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/internal/activity"]
       interval: 60s
       timeout: 5s
       retries: 3
@@ -103,12 +107,439 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 1G
-        reservations:
           cpus: '0.5'
           memory: 256M
-    restart: unless-stopped
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    restart: "no"
+    profiles:
+      - all
+      - confluence
+
+  # Files API microservice
+  api-files:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-api-files
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=8002
+      - API_RELOAD=${API_RELOAD:-true}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_SECURE=false
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
+    working_dir: /app
+    command: python -m src.api.apps.__main__files__
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - vault
+      - minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/internal/activity"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    restart: "no"
+    profiles:
+      - all
+      - files
+
+  # LLM API microservice
+  api-llm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-api-llm
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=8003
+      - API_RELOAD=${API_RELOAD:-true}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
+    working_dir: /app
+    command: python -m src.api.apps.__main__llm__
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - vault
+      - ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/internal/activity"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 128M
+    restart: "no"
+    profiles:
+      - all
+      - llm
+
+  # Health API microservice
+  api-health:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-api-health
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=8004
+      - API_RELOAD=${API_RELOAD:-true}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
+    working_dir: /app
+    command: python -m src.api.apps.__main__health__
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - vault
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/internal/activity"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    restart: "no"
+    profiles:
+      - all
+      - health
+
+  # Logs API microservice
+  api-logs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-api-logs
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=8005
+      - API_RELOAD=${API_RELOAD:-true}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
+    working_dir: /app
+    command: python -m src.api.apps.__main__logs__
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - vault
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/internal/activity"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    restart: "no"
+    profiles:
+      - all
+      - logs
+
+  # Data API microservice
+  api-data:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-api-data
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=8006
+      - API_RELOAD=${API_RELOAD:-true}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
+    working_dir: /app
+    command: python -m src.api.apps.__main__data__
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - vault
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/internal/activity"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    restart: "no"
+    profiles:
+      - all
+      - data
+
+  # Secrets API microservice
+  api-secrets:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-api-secrets
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=8007
+      - API_RELOAD=${API_RELOAD:-true}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
+    working_dir: /app
+    command: python -m src.api.apps.__main__secrets__
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - vault
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8007/internal/activity"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    restart: "no"
+    profiles:
+      - all
+      - secrets
+
+  # Messages API microservice
+  api-messages:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-api-messages
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=8008
+      - API_RELOAD=${API_RELOAD:-true}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-odin}:${RABBITMQ_PASSWORD:-odin_dev_password}@rabbitmq:5672/
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
+    working_dir: /app
+    command: python -m src.api.apps.__main__messages__
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - rabbitmq
+      - vault
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/internal/activity"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+    restart: "no"
+    profiles:
+      - all
+      - messages
+
+  # Image Analysis API microservice
+  api-image-analysis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: odin-api-image-analysis
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=8009
+      - API_RELOAD=${API_RELOAD:-true}
+      - API_LOG_LEVEL=${API_LOG_LEVEL:-info}
+      - POSTGRES_DSN=postgresql+asyncpg://${POSTGRES_USER:-odin}:${POSTGRES_PASSWORD:-odin_dev_password}@postgresql:5432/${POSTGRES_DB:-odin_db}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_SECURE=false
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN:-dev-root-token}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      - LOG_BUFFER_SIZE=${LOG_BUFFER_SIZE:-100}
+      - LOG_BUFFER_TIMEOUT=${LOG_BUFFER_TIMEOUT:-5.0}
+      - LOG_LEVEL_DB_MIN=${LOG_LEVEL_DB_MIN:-INFO}
+      - INACTIVITY_TIMEOUT_SECONDS=${INACTIVITY_TIMEOUT_SECONDS:-300}
+    working_dir: /app
+    command: python -m src.api.apps.__main__image_analysis__
+    networks:
+      - odin-network
+    depends_on:
+      - postgresql
+      - vault
+      - minio
+      - ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8009/internal/activity"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 128M
+    restart: "no"
+    profiles:
+      - all
+      - image-analysis
 
   # Nginx reverse proxy
   nginx:
@@ -161,6 +592,7 @@ services:
     volumes:
       - postgresql-data:/var/lib/postgresql/data
       - ./scripts/init-timescaledb.sql:/docker-entrypoint-initdb.d/02-init-timescaledb.sql:ro
+      - ./scripts/init-health-timescaledb.sql:/docker-entrypoint-initdb.d/03-init-health-timescaledb.sql:ro
     networks:
       - odin-network
     restart: unless-stopped

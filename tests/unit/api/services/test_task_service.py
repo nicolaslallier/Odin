@@ -138,4 +138,3 @@ class TestTaskService:
 
             assert isinstance(service, TaskService)
             assert service.celery_app == mock_celery_app
-

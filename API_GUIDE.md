@@ -4,7 +4,9 @@
 
 The Odin API Service is an internal FastAPI-based REST API that provides comprehensive backend functionality for the Odin project. It connects to PostgreSQL, MinIO, RabbitMQ, Vault, and Ollama to offer data management, file storage, message queuing, secret management, and LLM capabilities.
 
-**Important**: The API is internal-only and not exposed through nginx. It runs on port 8001 and is accessible only within the Docker network at `http://api:8001`.
+**Important**: The API has been split into **9 independent microservices** for better resource efficiency and isolation. Each microservice handles a specific domain (confluence, files, llm, health, logs, data, secrets, messages, image-analysis). Nginx routes requests to the appropriate microservice based on URL path.
+
+For detailed information about the microservices architecture, see [MICROSERVICES_GUIDE.md](MICROSERVICES_GUIDE.md).
 
 ## Architecture
 
@@ -16,9 +18,23 @@ The API service follows SOLID principles and Test-Driven Development (TDD) with 
 - **Interface Segregation**: Focused, specific endpoints
 - **Dependency Inversion**: Configuration-driven dependencies
 
-## Service Connections
+## Microservices Architecture
 
-The API connects to the following services:
+The API is split into 9 independent microservices:
+
+| Service | Port | Container | Purpose |
+|---------|------|-----------|---------|
+| **confluence** | 8001 | odin-api-confluence | Confluence operations and statistics |
+| **files** | 8002 | odin-api-files | File storage and management |
+| **llm** | 8003 | odin-api-llm | LLM/Ollama operations |
+| **health** | 8004 | odin-api-health | Health checks and monitoring |
+| **logs** | 8005 | odin-api-logs | Log management and querying |
+| **data** | 8006 | odin-api-data | Generic CRUD operations |
+| **secrets** | 8007 | odin-api-secrets | Vault secrets management |
+| **messages** | 8008 | odin-api-messages | RabbitMQ messaging |
+| **image-analysis** | 8009 | odin-api-image-analysis | Image analysis with vision models |
+
+All microservices share the same infrastructure:
 
 | Service    | Endpoint                     | Purpose                      |
 |------------|------------------------------|------------------------------|
@@ -27,6 +43,11 @@ The API connects to the following services:
 | RabbitMQ   | rabbitmq:5672                | Message queue                |
 | Vault      | vault:8200                   | Secrets management           |
 | Ollama     | ollama:11434                 | LLM operations               |
+
+**URL Routing**: Nginx routes `/api/<service>/...` to the appropriate microservice. For example:
+- `/api/confluence/...` → `api-confluence:8001`
+- `/api/files/...` → `api-files:8002`
+- `/api/llm/...` → `api-llm:8003`
 
 ## API Endpoints
 

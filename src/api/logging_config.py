@@ -13,7 +13,7 @@ import threading
 import time
 from datetime import datetime
 from queue import Queue
-from typing import Any
+from typing import Any, cast, MutableMapping
 
 try:
     import orjson as json
@@ -133,7 +133,7 @@ class LoggerAdapter(logging.LoggerAdapter):
     and user_id to all log messages.
     """
 
-    def process(self, msg: str, kwargs: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    def process(self, msg: str, kwargs: MutableMapping[str, Any]) -> tuple[str, MutableMapping[str, Any]]:
         """Process log message to add extra context.
 
         Args:
@@ -241,7 +241,7 @@ class DatabaseLogHandler(logging.Handler):
         """
         try:
             # Extract log data
-            log_data = {
+            log_data: dict[str, Any] = {
                 "timestamp": datetime.fromtimestamp(record.created),
                 "level": record.levelname,
                 "service": self.service_name,
@@ -320,7 +320,12 @@ class DatabaseLogHandler(logging.Handler):
         except Exception as e:
             # Suppress shutdown/atexit errors during interpreter exit
             msg = str(e)
-            if ("atexit" in msg or "after shutdown" in msg or "cannot schedule new futures" in msg or "no event loop" in msg):
+            if (
+                "atexit" in msg
+                or "after shutdown" in msg
+                or "cannot schedule new futures" in msg
+                or "no event loop" in msg
+            ):
                 return
             print(f"Failed to insert logs to database: {e}", file=sys.stderr)
 

@@ -69,6 +69,7 @@ class TestConfluenceEndToEnd:
     """Integration tests for Confluence proxy endpoints via the web portal.
     These tests do not require Confluence or API credentials for the portal.
     """
+
     def test_convert_to_markdown_proxy(self, test_app: TestClient) -> None:
         """Proxy POST to /confluence/convert-to-markdown should get 503 if backend is unavailable or 200 if mock/real API up."""
         response = test_app.post(
@@ -77,7 +78,7 @@ class TestConfluenceEndToEnd:
         )
         # Accept proxy failure or proxy pass; never require portal Confluence credentials
         assert response.status_code in [200, 404, 500, 503]
-    
+
     def test_get_statistics_proxy(self, test_app: TestClient) -> None:
         """Proxy POST to /confluence/statistics should get 503 if backend is unavailable or mock data if up."""
         response = test_app.post(
@@ -103,7 +104,11 @@ class TestConfluenceEndToEnd:
             json={"page_id": "error", "save_to_storage": False},
         )
         assert response.status_code in [500, 503]
-        assert "error" in response.text.lower() or "fail" in response.text.lower() or response.status_code != 200
+        assert (
+            "error" in response.text.lower()
+            or "fail" in response.text.lower()
+            or response.status_code != 200
+        )
 
     def test_unhandled_confluence_route(self, test_app: TestClient) -> None:
         """Non-existent route should return 404."""
@@ -132,7 +137,11 @@ class TestConfluenceErrorHandling:
         )
         assert response.status_code in [404, 503, 500]
         # Accept any error detail – just check it's not a portal credential validation
-        assert "error" in response.text.lower() or "not found" in response.text.lower() or response.status_code != 200
+        assert (
+            "error" in response.text.lower()
+            or "not found" in response.text.lower()
+            or response.status_code != 200
+        )
 
     def test_invalid_page_id_format(self, test_app: TestClient) -> None:
         """Invalid page ID should cause a FastAPI validation error or relay 400/422 from backend."""
@@ -183,4 +192,3 @@ class TestConfluenceModelsEndpoint:
             data = response.json()
             assert "models" in data
             assert isinstance(data["models"], list)
-

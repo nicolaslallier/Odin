@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Any, cast, Optional
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel, BlockingConnection

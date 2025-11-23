@@ -12,12 +12,14 @@
     // Configuration
     const REFRESH_INTERVAL = 30000; // 30 seconds
     const API_ENDPOINT = '/health/api';
+    const HISTORY_ENDPOINT = '/health/api/history';
     const STORAGE_KEY = 'odin-health-auto-refresh';
 
     // State
     let autoRefreshEnabled = true;
     let refreshIntervalId = null;
     let isRefreshing = false;
+    let currentTimeRange = '1h';
 
     // DOM Elements
     const refreshBtn = document.getElementById('refresh-btn');
@@ -43,10 +45,19 @@
         refreshBtn.addEventListener('click', handleManualRefresh);
         autoRefreshToggle.addEventListener('change', handleAutoRefreshToggle);
 
+        // Set up time range selector listeners
+        const timeRangeBtns = document.querySelectorAll('.time-range-btn');
+        timeRangeBtns.forEach(btn => {
+            btn.addEventListener('click', handleTimeRangeChange);
+        });
+
         // Start auto-refresh if enabled
         if (autoRefreshEnabled) {
             startAutoRefresh();
         }
+
+        // Load initial historical data
+        fetchAndUpdateHistory(currentTimeRange);
     }
 
     /**
@@ -220,6 +231,180 @@
     function showError(message) {
         // Could be enhanced with a toast notification system
         console.error(message);
+    }
+
+    /**
+     * Handle time range button clicks
+     */
+    function handleTimeRangeChange(event) {
+        const range = event.target.dataset.range;
+        if (!range) return;
+
+        currentTimeRange = range;
+
+        // Update button states
+        document.querySelectorAll('.time-range-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        // Fetch new historical data
+        fetchAndUpdateHistory(range);
+    }
+
+    /**
+     * Fetch and display historical health data
+     */
+    async function fetchAndUpdateHistory(timeRange) {
+        const loadingEl = document.getElementById('history-loading');
+        const chartsEl = document.getElementById('history-charts');
+        const summaryEl = document.getElementById('history-summary');
+
+        if (!loadingEl || !chartsEl || !summaryEl) return;
+
+        // Show loading state
+        loadingEl.style.display = 'flex';
+        chartsEl.style.display = 'none';
+        summaryEl.style.display = 'none';
+
+        try {
+            const response = await fetch(`${HISTORY_ENDPOINT}?time_range=${timeRange}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.success && data.records && data.records.length > 0) {
+                renderHistoricalCharts(data.records);
+                renderHistorySummary(data.records);
+                
+                loadingEl.style.display = 'none';
+                chartsEl.style.display = 'grid';
+                summaryEl.style.display = 'grid';
+            } else {
+                loadingEl.innerHTML = '<p class="no-data">No historical data available for this time range</p>';
+            }
+        } catch (error) {
+            console.error('Failed to fetch historical data:', error);
+            loadingEl.innerHTML = '<p class="no-data">Failed to load historical data</p>';
+        }
+    }
+
+    /**
+     * Render historical charts for each service
+     */
+    function renderHistoricalCharts(records) {
+        const chartsEl = document.getElementById('history-charts');
+        if (!chartsEl) return;
+
+        // Group records by service
+        const serviceData = {};
+        records.forEach(record => {
+            if (!serviceData[record.service_name]) {
+                serviceData[record.service_name] = [];
+            }
+            serviceData[record.service_name].push(record);
+        });
+
+        // Clear existing charts
+        chartsEl.innerHTML = '';
+
+        // Create chart for each service
+        Object.entries(serviceData).forEach(([serviceName, data]) => {
+            const chartHtml = createServiceChart(serviceName, data);
+            chartsEl.innerHTML += chartHtml;
+        });
+    }
+
+    /**
+     * Create a chart for a specific service
+     */
+    function createServiceChart(serviceName, data) {
+        // Sort by timestamp
+        data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        // Calculate uptime percentage
+        const totalChecks = data.length;
+        const healthyChecks = data.filter(d => d.is_healthy).length;
+        const uptimePercent = totalChecks > 0 ? ((healthyChecks / totalChecks) * 100).toFixed(1) : 0;
+
+        // Determine badge class
+        let badgeClass = '';
+        if (uptimePercent >= 99) badgeClass = '';
+        else if (uptimePercent >= 95) badgeClass = 'warning';
+        else badgeClass = 'critical';
+
+        // Create bars for chart
+        const bars = data.map(record => {
+            const healthClass = record.is_healthy ? '' : 'unhealthy';
+            return `<div class="chart-bar ${healthClass}" title="${new Date(record.timestamp).toLocaleString()}: ${record.is_healthy ? 'Healthy' : 'Unhealthy'}"></div>`;
+        }).join('');
+
+        return `
+            <div class="service-chart">
+                <div class="chart-header">
+                    <span class="chart-title">${serviceName}</span>
+                    <span class="uptime-badge ${badgeClass}">${uptimePercent}% uptime</span>
+                </div>
+                <div class="chart-canvas">
+                    <div class="chart-bar-container">
+                        ${bars}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render history summary statistics
+     */
+    function renderHistorySummary(records) {
+        const summaryEl = document.getElementById('history-summary');
+        if (!summaryEl) return;
+
+        // Calculate overall statistics
+        const totalChecks = records.length;
+        const healthyChecks = records.filter(r => r.is_healthy).length;
+        const unhealthyChecks = totalChecks - healthyChecks;
+        const overallUptime = totalChecks > 0 ? ((healthyChecks / totalChecks) * 100).toFixed(1) : 0;
+
+        // Count unique services
+        const uniqueServices = new Set(records.map(r => r.service_name)).size;
+
+        // Find services with issues
+        const serviceHealth = {};
+        records.forEach(record => {
+            if (!serviceHealth[record.service_name]) {
+                serviceHealth[record.service_name] = { healthy: 0, unhealthy: 0 };
+            }
+            if (record.is_healthy) {
+                serviceHealth[record.service_name].healthy++;
+            } else {
+                serviceHealth[record.service_name].unhealthy++;
+            }
+        });
+
+        const servicesWithIssues = Object.values(serviceHealth).filter(s => s.unhealthy > 0).length;
+
+        summaryEl.innerHTML = `
+            <div class="summary-card">
+                <div class="summary-value">${overallUptime}%</div>
+                <div class="summary-label">Overall Uptime</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">${uniqueServices}</div>
+                <div class="summary-label">Services Monitored</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value ${servicesWithIssues > 0 ? 'warning' : ''}">${servicesWithIssues}</div>
+                <div class="summary-label">Services with Issues</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value ${unhealthyChecks > 0 ? 'critical' : ''}">${unhealthyChecks}</div>
+                <div class="summary-label">Failed Checks</div>
+            </div>
+        `;
     }
 
     /**

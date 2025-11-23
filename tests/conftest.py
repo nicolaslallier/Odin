@@ -7,9 +7,9 @@ across all test modules.
 from __future__ import annotations
 
 import os
-
-import pytest
+import asyncio
 import logging
+import pytest
 
 # Import all fixtures to make them available
 pytest_plugins = [
@@ -40,3 +40,13 @@ def pytest_sessionfinish(session, exitstatus):
     # Remove all logging handlers to avoid 'I/O operation on closed file' error
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
+
+
+def pytest_unconfigure(config):
+    try:
+        loop = asyncio.get_event_loop()
+        if not loop.is_closed():
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.close()
+    except Exception:
+        pass

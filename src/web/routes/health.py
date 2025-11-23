@@ -1,16 +1,17 @@
 """Health monitoring routes for web interface.
 
 This module provides routes for displaying comprehensive health information
-about all Odin services and infrastructure components.
+about all Odin services and infrastructure components, including historical data.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -192,3 +193,122 @@ async def health_api(request: Request) -> dict[str, Any]:
         "circuit_breakers": circuit_breakers,
         "timestamp": None,  # Will be added by frontend
     }
+
+
+@router.get("/health/api/history")
+async def health_history_api(
+    request: Request,
+    time_range: str = Query("1h", description="Time range: 1h, 24h, 7d, 30d"),
+    service_names: str | None = Query(None, description="Comma-separated service names"),
+) -> dict[str, Any]:
+    """API endpoint for historical health data.
+
+    This endpoint fetches historical health check data from the API service
+    for display in charts and graphs on the health dashboard.
+
+    Args:
+        request: The incoming HTTP request
+        time_range: Time range for historical data (1h, 24h, 7d, 30d)
+        service_names: Optional comma-separated list of service names to filter
+
+    Returns:
+        Dictionary with historical health data
+    """
+    config = request.app.state.config
+    api_base_url = config.api_base_url
+
+    # Calculate time range
+    now = datetime.now(timezone.utc)
+    time_ranges = {
+        "1h": timedelta(hours=1),
+        "24h": timedelta(hours=24),
+        "7d": timedelta(days=7),
+        "30d": timedelta(days=30),
+    }
+    delta = time_ranges.get(time_range, timedelta(hours=1))
+    start_time = now - delta
+
+    # Build query parameters
+    params = {
+        "start_time": start_time.isoformat(),
+        "end_time": now.isoformat(),
+        "limit": 1000,
+    }
+
+    if service_names:
+        # Convert comma-separated string to list
+        service_list = [s.strip() for s in service_names.split(",")]
+        params["service_names"] = service_list
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{api_base_url}/health/history",
+                params=params,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "success": True,
+                    "records": data.get("records", []),
+                    "total": data.get("total", 0),
+                    "time_range": time_range,
+                    "start_time": start_time.isoformat(),
+                    "end_time": now.isoformat(),
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"API returned status {response.status_code}",
+                    "records": [],
+                    "total": 0,
+                }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "records": [],
+            "total": 0,
+        }
+
+
+@router.get("/health/api/latest")
+async def health_latest_api(request: Request) -> dict[str, Any]:
+    """API endpoint for latest health status from timeseries database.
+
+    This endpoint fetches the most recent health status for all services
+    from the TimescaleDB hypertable via the API service.
+
+    Args:
+        request: The incoming HTTP request
+
+    Returns:
+        Dictionary with latest health status
+    """
+    config = request.app.state.config
+    api_base_url = config.api_base_url
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{api_base_url}/health/latest")
+
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "success": True,
+                    "services": data.get("services", {}),
+                    "timestamp": data.get("timestamp"),
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"API returned status {response.status_code}",
+                    "services": {},
+                }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "services": {},
+        }

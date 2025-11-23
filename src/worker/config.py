@@ -48,9 +48,7 @@ class WorkerConfig(BaseSettings):
     minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
 
     # API Callback Settings
-    api_callback_url: str = Field(
-        default="http://odin-api:8001", alias="API_CALLBACK_URL"
-    )
+    api_callback_url: str = Field(default="http://odin-api:8001", alias="API_CALLBACK_URL")
 
     model_config = SettingsConfigDict(
         env_file=".env",

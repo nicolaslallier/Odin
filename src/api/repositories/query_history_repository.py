@@ -7,6 +7,7 @@ using the repository pattern to abstract database operations.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import Any, cast
 
 from sqlalchemy import (
     Column,

@@ -17,6 +17,7 @@ import httpx
 from src.worker.celery_app import celery_app
 from src.worker.exceptions import WorkerError
 from src.worker.services.confluence_client import ConfluenceClient
+from src.worker.tasks.confluence import collect_confluence_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -250,4 +251,3 @@ def process_statistics_queue() -> dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to process statistics queue: {e}")
         return {"status": "error", "error": str(e), "processed": 0}
-

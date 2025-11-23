@@ -288,9 +288,7 @@ class ConfluenceClient:
             "version_count": total_versions,
         }
 
-    def _calculate_comprehensive_statistics(
-        self, pages: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _calculate_comprehensive_statistics(self, pages: list[dict[str, Any]]) -> dict[str, Any]:
         """Calculate comprehensive statistics from pages.
 
         Args:
@@ -335,4 +333,3 @@ class ConfluenceClient:
             "comment_counts": comment_counts,
             "link_analysis": link_analysis,
         }
-

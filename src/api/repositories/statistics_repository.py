@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from src.api.exceptions import DatabaseError, ResourceNotFoundError
+from src.api.exceptions import DatabaseError
 
 
 class Base(DeclarativeBase):
@@ -351,9 +351,7 @@ class StatisticsRepository:
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-            stmt = select(func.count()).where(
-                ConfluenceStatisticsModel.timestamp < cutoff_date
-            )
+            stmt = select(func.count()).where(ConfluenceStatisticsModel.timestamp < cutoff_date)
             result = await self.session.execute(stmt)
             count = result.scalar() or 0
 
@@ -394,4 +392,3 @@ class StatisticsRepository:
             "metadata": model.extra_metadata,
             "created_at": model.created_at.isoformat(),
         }
-

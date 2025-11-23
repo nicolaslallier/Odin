@@ -6,12 +6,11 @@ ensuring proper configuration management following SOLID principles.
 
 from __future__ import annotations
 
-import pytest
-from pydantic import ValidationError
-from pydantic_settings import SettingsError
 import subprocess
 import sys
 import textwrap
+import pytest
+from pydantic import ValidationError
 
 from src.worker.config import WorkerConfig, get_config
 
@@ -61,35 +60,37 @@ class TestWorkerConfig:
 
     def test_config_missing_broker_url_raises_error(self):
         """Test that missing broker URL raises settings error in subprocess without project .env."""
-        import os
-        import tempfile
-        import shutil
-        code = textwrap.dedent('''
+        code = textwrap.dedent(
+            """
             from src.worker.config import WorkerConfig
             try:
                 WorkerConfig(env_file=None)
             except Exception as e:
                 print(type(e).__name__)
-        ''')
+        """
+        )
         env = {"CELERY_RESULT_BACKEND": "db+postgresql://user:pass@localhost:5432/db"}
         # Run in /tmp to guarantee no Odin .env file present
-        result = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, cwd='/tmp')
+        result = subprocess.run(
+            [sys.executable, "-c", code], env=env, capture_output=True, text=True, cwd="/tmp"
+        )
         assert "SettingsError" in result.stderr or "ValidationError" in result.stderr
 
     def test_config_missing_result_backend_raises_error(self):
         """Test that missing result backend raises settings error in subprocess without project .env."""
-        import os
-        import tempfile
-        import shutil
-        code = textwrap.dedent('''
+        code = textwrap.dedent(
+            """
             from src.worker.config import WorkerConfig
             try:
                 WorkerConfig(env_file=None)
             except Exception as e:
                 print(type(e).__name__)
-        ''')
+        """
+        )
         env = {"CELERY_BROKER_URL": "amqp://guest:guest@localhost:5672//"}
-        result = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, cwd='/tmp')
+        result = subprocess.run(
+            [sys.executable, "-c", code], env=env, capture_output=True, text=True, cwd="/tmp"
+        )
         assert "SettingsError" in result.stderr or "ValidationError" in result.stderr
 
     def test_config_is_immutable(self, monkeypatch: pytest.MonkeyPatch) -> None:

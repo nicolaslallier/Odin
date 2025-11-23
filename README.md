@@ -170,8 +170,17 @@ cp env.example .env
 3. Build and start the development environment:
 ```bash
 make setup
-make up
+make up  # Starts infrastructure services
+
+# Start all API microservices (or just the ones you need)
+docker-compose --profile all up -d
+
+# Alternative: Start specific microservices
+./scripts/start-api-service.sh confluence
+./scripts/start-api-service.sh files
 ```
+
+**Note**: The API is now split into 9 independent microservices. See [MICROSERVICES_GUIDE.md](MICROSERVICES_GUIDE.md) for details on the new architecture and service management.
 
 4. Access the container shell:
 ```bash

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, UTC, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -40,7 +40,7 @@ class TestLogRepository:
         mock_result.fetchall.return_value = [
             (
                 1,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
                 "INFO",
                 "api",
                 "test_logger",
@@ -53,7 +53,7 @@ class TestLogRepository:
                 None,
                 None,
                 {},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
         ]
         mock_session.execute.return_value = mock_result
@@ -72,8 +72,8 @@ class TestLogRepository:
         mock_result.fetchall.return_value = []
         mock_session.execute.return_value = mock_result
 
-        start = datetime.now(timezone.utc) - timedelta(hours=1)
-        end = datetime.now(timezone.utc)
+        start = datetime.now(UTC) - timedelta(hours=1)
+        end = datetime.now(UTC)
 
         logs = await log_repo.get_logs(start_time=start, end_time=end)
 
@@ -131,7 +131,7 @@ class TestLogRepository:
         mock_result.fetchall.return_value = [
             (
                 1,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
                 "ERROR",
                 "api",
                 "logger",
@@ -144,7 +144,7 @@ class TestLogRepository:
                 None,
                 None,
                 {},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
                 0.5,  # rank column
             )
         ]
@@ -170,9 +170,9 @@ class TestLogRepository:
         # First call: service/level stats
         mock_service_result = MagicMock()
         mock_service_result.fetchall.return_value = [
-            ("api", "ERROR", 10, datetime.now(timezone.utc)),
-            ("api", "INFO", 20, datetime.now(timezone.utc)),
-            ("worker", "ERROR", 15, datetime.now(timezone.utc)),
+            ("api", "ERROR", 10, datetime.now(UTC)),
+            ("api", "INFO", 20, datetime.now(UTC)),
+            ("worker", "ERROR", 15, datetime.now(UTC)),
         ]
 
         # Second call: total counts
@@ -184,8 +184,8 @@ class TestLogRepository:
             mock_total_result,
         ]
 
-        start = datetime.now(timezone.utc) - timedelta(hours=1)
-        end = datetime.now(timezone.utc)
+        start = datetime.now(UTC) - timedelta(hours=1)
+        end = datetime.now(UTC)
 
         stats = await log_repo.get_log_statistics(start_time=start, end_time=end)
 
@@ -250,13 +250,13 @@ class TestLogRepository:
     async def test_get_related_logs(self, log_repo, mock_session):
         """Test get_related_logs method."""
         from uuid import uuid4
-        
+
         test_request_id = uuid4()
         mock_result = MagicMock()
         mock_result.fetchall.return_value = [
             (
                 2,
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
                 "INFO",
                 "api",
                 "logger",
@@ -269,7 +269,7 @@ class TestLogRepository:
                 None,
                 None,
                 {},
-                datetime.now(timezone.utc),
+                datetime.now(UTC),
             )
         ]
         mock_session.execute.return_value = mock_result
@@ -292,7 +292,7 @@ class TestLogRepository:
     async def test_get_related_logs_database_error(self, log_repo, mock_session):
         """Test get_related_logs handles database errors."""
         from uuid import uuid4
-        
+
         mock_session.execute.side_effect = SQLAlchemyError("Query failed")
 
         with pytest.raises(DatabaseError, match="Failed to get related logs"):
@@ -304,7 +304,7 @@ class TestLogRepository:
         mock_result = MagicMock()
         mock_result.fetchone.return_value = (
             1,
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
             "ERROR",
             "api",
             "logger",
@@ -317,7 +317,7 @@ class TestLogRepository:
             None,
             None,
             {"key": "value"},
-            datetime.now(timezone.utc),
+            datetime.now(UTC),
         )
         mock_session.execute.return_value = mock_result
 
@@ -348,4 +348,3 @@ class TestLogRepository:
 
         with pytest.raises(DatabaseError, match="Failed to get log by ID"):
             await log_repo.get_log_by_id(1)
-

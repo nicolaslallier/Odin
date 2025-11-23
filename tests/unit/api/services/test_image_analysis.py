@@ -276,10 +276,13 @@ class TestAnalyzeAndStore:
         # Make LLM fail
         image_analysis_service.ollama.analyze_image.side_effect = LLMError("Model not found")
 
-        with patch(
-            "src.api.services.image_analysis.ImageRepository",
-            return_value=mock_repository,
-        ), pytest.raises(LLMError, match="Model not found"):
+        with (
+            patch(
+                "src.api.services.image_analysis.ImageRepository",
+                return_value=mock_repository,
+            ),
+            pytest.raises(LLMError, match="Model not found"),
+        ):
             await image_analysis_service.analyze_and_store(
                 filename=filename,
                 file_data=file_data,
@@ -301,10 +304,13 @@ class TestAnalyzeAndStore:
         # Make database fail
         mock_repository.create.side_effect = DatabaseError("DB connection lost")
 
-        with patch(
-            "src.api.services.image_analysis.ImageRepository",
-            return_value=mock_repository,
-        ), pytest.raises(DatabaseError, match="DB connection lost"):
+        with (
+            patch(
+                "src.api.services.image_analysis.ImageRepository",
+                return_value=mock_repository,
+            ),
+            pytest.raises(DatabaseError, match="DB connection lost"),
+        ):
             await image_analysis_service.analyze_and_store(
                 filename=filename,
                 file_data=file_data,
@@ -376,10 +382,13 @@ class TestGetAnalysis:
 
         mock_repository.get_by_id.side_effect = ResourceNotFoundError("Not found")
 
-        with patch(
-            "src.api.services.image_analysis.ImageRepository",
-            return_value=mock_repository,
-        ), pytest.raises(ResourceNotFoundError):
+        with (
+            patch(
+                "src.api.services.image_analysis.ImageRepository",
+                return_value=mock_repository,
+            ),
+            pytest.raises(ResourceNotFoundError),
+        ):
             await image_analysis_service.get_analysis(999)
 
 
@@ -452,10 +461,13 @@ class TestDeleteAnalysis:
 
         mock_repository.get_by_id.side_effect = ResourceNotFoundError("Not found")
 
-        with patch(
-            "src.api.services.image_analysis.ImageRepository",
-            return_value=mock_repository,
-        ), pytest.raises(ResourceNotFoundError):
+        with (
+            patch(
+                "src.api.services.image_analysis.ImageRepository",
+                return_value=mock_repository,
+            ),
+            pytest.raises(ResourceNotFoundError),
+        ):
             await image_analysis_service.delete_analysis(999)
 
     @pytest.mark.asyncio

@@ -7,7 +7,7 @@ for the API service.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 import hvac
 
@@ -82,7 +82,7 @@ class VaultService:
         try:
             client = self.get_client()
             response = client.secrets.kv.v2.read_secret_version(path=path)
-            return response["data"]["data"]
+            return cast(dict[str, Any] | None, response["data"]["data"])
         except hvac.exceptions.InvalidPath:
             raise ResourceNotFoundError(f"Secret not found at path: {path}", {"path": path})
         except hvac.exceptions.Forbidden as e:
@@ -122,7 +122,7 @@ class VaultService:
         try:
             client = self.get_client()
             response = client.secrets.kv.v2.list_secrets(path=path)
-            return response["data"]["keys"]
+            return cast(list[str], response["data"]["keys"])
         except hvac.exceptions.InvalidPath:
             return []
         except hvac.exceptions.VaultError as e:
@@ -142,6 +142,6 @@ class VaultService:
             client = self.get_client()
             # Run synchronous is_authenticated in thread pool
             result = await loop.run_in_executor(None, client.is_authenticated)
-            return result
+            return cast(bool, result)
         except Exception:
             return False

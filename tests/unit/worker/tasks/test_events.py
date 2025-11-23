@@ -84,7 +84,9 @@ class TestHandleUserRegistration:
 
     @patch("src.worker.tasks.events.session_scope")
     @patch("src.worker.tasks.events.send_notification")
-    def test_handle_registration_creates_user_profile(self, mock_session_scope: MagicMock, mock_send_notification: MagicMock) -> None:
+    def test_handle_registration_creates_user_profile(
+        self, mock_session_scope: MagicMock, mock_send_notification: MagicMock
+    ) -> None:
         """Test that user profile is created during registration."""
         # Arrange
         mock_session = MagicMock()
@@ -304,25 +306,32 @@ def test_validate_webhook_signature_true_false():
     # Line 29: returns True for non-empty, False for empty signature
     data = {}
     from src.worker.tasks import events
+
     assert events.validate_webhook_signature(data, "x") is True
     assert events.validate_webhook_signature(data, "") is False
+
 
 @patch("src.worker.tasks.events.session_scope")
 def test_handle_registration_missing_email(mock_session_scope):
     mock_session_scope.return_value.__enter__.return_value = MagicMock()
     incomplete = {"user_id": 123}
     from src.worker.tasks import events
+
     with pytest.raises(ValueError) as exc:
         events.handle_user_registration(incomplete)
     assert "email" in str(exc.value).lower()
 
+
 @patch("src.worker.tasks.events.httpx.post")
 def test_send_notification_http_retry_becomes_failed(mock_post):
     import src.worker.tasks.events as events_mod
+
     task_obj = events_mod.send_notification
+
     def fake_retry(exc):
         raise Exception(f"mark: {exc}")
-    setattr(task_obj, "retry", fake_retry)
+
+    task_obj.retry = fake_retry
     mock_post.return_value = MagicMock(status_code=500)
     notification_data = {"user_id": 42, "type": "email", "subject": "s", "message": "m"}
     result = task_obj.run(notification_data)

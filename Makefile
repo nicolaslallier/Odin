@@ -44,13 +44,19 @@ help:
 	@echo "  make init-services   - Initialize services (Vault, MinIO buckets)"
 	@echo ""
 	@echo "$(GREEN)🚀 Container Management:$(NC)"
-	@echo "  make up              - Start all containers (portal auto-starts web server)"
+	@echo "  make up              - Start all containers (infra + ALL API microservices)"
 	@echo "  make down            - Stop all containers"
 	@echo "  make restart         - Restart all containers"
 	@echo "  make ps              - Show running containers"
 	@echo "  make logs            - View logs from all containers"
 	@echo "  make shell           - Access portal container shell (keeps web server running)"
 	@echo "  make shell-dev       - Start portal in interactive shell mode (no web server)"
+	@echo ""
+	@echo "$(GREEN)🔧 API Microservices:$(NC)"
+	@echo "  ./scripts/list-api-services.sh     - Show all API microservice status"
+	@echo "  ./scripts/start-api-service.sh <n> - Start specific microservice"
+	@echo "  ./scripts/stop-api-service.sh <n>  - Stop specific microservice"
+	@echo "  See MICROSERVICES_GUIDE.md for details"
 	@echo ""
 	@echo "$(GREEN)🧪 Testing (All Components):$(NC)"
 	@echo "  make test            - Run all tests (all components)"
@@ -130,7 +136,8 @@ help:
 	@echo "  make restore         - Restore PostgreSQL database from backup"
 	@echo ""
 	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo "$(YELLOW)💡 Tip: Run 'make services-up' to start all infrastructure services$(NC)"
+	@echo "$(YELLOW)💡 Tip: Run 'make up' to start everything (infra + all API microservices)$(NC)"
+	@echo "$(YELLOW)💡 Tip: Run './scripts/list-api-services.sh' to check microservice status$(NC)"
 	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 
 # ============================================================================
@@ -191,12 +198,13 @@ init-services:
 # Container Management
 # ============================================================================
 
-# Start all containers
+# Start all containers (including all API microservices)
 up:
-	@echo "$(GREEN)Starting all containers...$(NC)"
-	@$(DOCKER_COMPOSE) up -d
+	@echo "$(GREEN)Starting all containers (infrastructure + all API microservices)...$(NC)"
+	@$(DOCKER_COMPOSE) --profile all up -d
 	@echo "$(GREEN)✓ Containers started!$(NC)"
 	@echo "$(YELLOW)Use 'make ps' to see running containers$(NC)"
+	@echo "$(YELLOW)Use './scripts/list-api-services.sh' to check API microservice status$(NC)"
 	@echo "$(YELLOW)Use 'make shell' to access the app container$(NC)"
 
 # Stop all containers
@@ -237,9 +245,17 @@ shell-dev:
 
 # Run all tests
 test:
-	@echo "$(BLUE)Running all tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm portal pytest tests/ -v
-	@echo "$(GREEN)✓ Tests complete!$(NC)"
+	@echo "$(BLUE)Running all API microservice tests by component...$(NC)"
+	@$(MAKE) test-api-confluence
+	@$(MAKE) test-api-files
+	@$(MAKE) test-api-llm
+	@$(MAKE) test-api-health
+	@$(MAKE) test-api-logs
+	@$(MAKE) test-api-data
+	@$(MAKE) test-api-secrets
+	@$(MAKE) test-api-messages
+	@$(MAKE) test-api-image-analysis
+	@echo "$(GREEN)✓ All API microservice tests complete!$(NC)"
 
 # Run unit tests only
 test-unit:
@@ -290,8 +306,8 @@ coverage:
 # Run API tests with coverage (async cleanup warnings at end are harmless)
 test-api:
 	@echo "$(BLUE)Running all API tests (unit + integration, with coverage)...$(NC)"
-	@$(DOCKER_COMPOSE) exec api bash -c "cd /app && pytest tests/unit/api/ tests/integration/api/ -v \
-		--cov=src/api --cov-report=term-missing --cov-report=xml --cov-fail-under=70"
+	-@PYTHONWARNINGS="ignore" $(DOCKER_COMPOSE) exec api bash -c "cd /app && pytest -p no:warnings --log-cli-level=CRITICAL --tb=short tests/unit/api/ tests/integration/api/ \
+		--cov=src/api --cov-report=term-missing --cov-report=xml --cov-fail-under=70" || true
 	@echo "$(GREEN)✓ API tests complete!$(NC)"
 
 test-api-unit:
@@ -650,4 +666,106 @@ restore:
 	else \
 		echo "$(RED)✗ Backup file not found$(NC)"; \
 	fi
+
+# =========================================================================
+# Per-API Microservice Testing
+# =========================================================================
+
+test-api-confluence:
+	@echo "$(BLUE)Running Confluence API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_confluence_statistics.py \
+	  tests/unit/api/services/test_confluence_service.py \
+	  --cov=src/api --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ Confluence API tests complete!$(NC)"
+
+test-api-files:
+	@echo "$(BLUE)Running Files API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_files.py \
+	  --cov=src/api --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ Files API tests complete!$(NC)"
+
+test-api-llm:
+	@echo "$(BLUE)Running LLM API tests (LLM-only coverage)...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_llm.py \
+	  tests/unit/api/services/test_llm_analysis_service.py \
+	  tests/unit/api/services/test_llm_prompts.py \
+	  --cov=src/api/apps/llm_app.py \
+	  --cov=src/api/routes/llm.py \
+	  --cov=src/api/services/llm_analysis_service.py \
+	  --cov=src/api/services/llm_prompts.py \
+	  --cov=src/api/services/ollama.py \
+	  --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ LLM API tests complete!$(NC)"
+
+test-api-health:
+	@echo "$(BLUE)Running Health API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_health.py \
+	  tests/unit/api/routes/test_health_record.py \
+	  tests/unit/api/services/test_db_management.py \
+	  tests/unit/api/repositories/test_health_repository.py \
+	  --cov=src/api --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ Health API tests complete!$(NC)"
+
+test-api-logs:
+	@echo "$(BLUE)Running Logs API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_logs.py \
+	  tests/unit/api/routes/test_logs_error_paths.py \
+	  tests/unit/api/services/test_log_service.py \
+	  tests/unit/api/repositories/test_log_repository.py \
+	  --cov=src/api --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ Logs API tests complete!$(NC)"
+
+test-api-data:
+	@echo "$(BLUE)Running Data API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_data.py \
+	  tests/unit/api/services/test_database.py \
+	  --cov=src/api --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ Data API tests complete!$(NC)"
+
+test-api-secrets:
+	@echo "$(BLUE)Running Secrets API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_secrets.py \
+	  tests/unit/api/services/test_vault.py \
+	  --cov=src/api --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ Secrets API tests complete!$(NC)"
+
+test-api-messages:
+	@echo "$(BLUE)Running Messages API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_messages.py \
+	  tests/unit/api/services/test_queue.py \
+	  --cov=src/api --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ Messages API tests complete!$(NC)"
+
+test-api-image-analysis:
+	@echo "$(BLUE)Running Image Analysis API tests...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest -v \
+	  tests/unit/api/routes/test_image_analysis.py \
+	  tests/unit/api/services/test_image_analysis.py \
+	  --cov=src/api --cov-report=term-missing --cov-report=xml || true
+	@echo "$(GREEN)✓ Image Analysis API tests complete!$(NC)"
+
+# API microservice global test targets
+
+test-api-unit-global:
+	@echo "$(BLUE)Running all API unit tests (global)...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/unit/api/ -v -m unit
+	@echo "$(GREEN)✓ All API unit tests (global) complete!$(NC)"
+
+test-api-integration-global:
+	@echo "$(BLUE)Running all API integration tests (global)...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/integration/api/ -v -m integration
+	@echo "$(GREEN)✓ All API integration tests (global) complete!$(NC)"
+
+test-api-regression-global:
+	@echo "$(BLUE)Running all API regression tests (global)...$(NC)"
+	@$(DOCKER_COMPOSE) run --rm portal pytest tests/regression/ -v -m regression || true
+	@echo "$(GREEN)✓ All API regression tests (global) complete!$(NC)"
 

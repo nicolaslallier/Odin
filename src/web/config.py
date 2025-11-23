@@ -7,7 +7,7 @@ following the Single Responsibility Principle (SRP) from SOLID.
 from __future__ import annotations
 
 import os
-from typing import Literal
+from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,7 +33,8 @@ class WebConfig(BaseModel):
         default="info", description="Logging level"
     )
     api_base_url: str = Field(
-        default="http://odin-api:8001", description="Base URL for API service"
+        default="http://odin-api:8001",
+        description="Base URL for API service (nginx routes to microservices)",
     )
     postgres_dsn: str = Field(
         default="", description="PostgreSQL connection string for database management"
@@ -66,6 +67,7 @@ def get_config() -> WebConfig:
         WEB_RELOAD: Auto-reload flag (default: false)
         WEB_LOG_LEVEL: Log level (default: info)
         API_BASE_URL: Base URL for API service (default: http://odin-api:8001)
+                      Note: Nginx routes /api/<service>/ to appropriate microservice
         POSTGRES_DSN: PostgreSQL connection string (default: empty)
 
     Returns:
@@ -80,7 +82,7 @@ def get_config() -> WebConfig:
         host=os.environ.get("WEB_HOST", "0.0.0.0"),
         port=int(os.environ.get("WEB_PORT", "8000")),
         reload=os.environ.get("WEB_RELOAD", "false").lower() in ("true", "1", "yes"),
-        log_level=os.environ.get("WEB_LOG_LEVEL", "info"),
+        log_level=cast(Literal['debug', 'info', 'warning', 'error', 'critical'], os.environ.get('WEB_LOG_LEVEL', 'info')),
         api_base_url=os.environ.get("API_BASE_URL", "http://odin-api:8001"),
         postgres_dsn=os.environ.get("POSTGRES_DSN", ""),
     )

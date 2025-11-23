@@ -27,11 +27,17 @@ def get_beat_schedule() -> dict[str, dict[str, Any]]:
         >>> print(schedule['health-check-services']['schedule'])
     """
     return {
-        # Health check services every 5 minutes
+        # Health check services every 5 minutes (legacy)
         "health-check-services": {
             "task": "src.worker.tasks.scheduled.health_check_services",
             "schedule": timedelta(minutes=5),
             "options": {"expires": 300},  # Expire after 5 minutes
+        },
+        # Collect and record health checks every 1 minute to TimescaleDB
+        "collect-health-checks": {
+            "task": "src.worker.tasks.scheduled.collect_and_record_health_checks",
+            "schedule": timedelta(minutes=1),
+            "options": {"expires": 60},  # Expire after 1 minute
         },
         # Cleanup old task results daily at 2 AM
         "cleanup-old-task-results": {

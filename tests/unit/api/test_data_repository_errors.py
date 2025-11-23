@@ -44,11 +44,14 @@ class TestDataRepositoryErrors:
     async def test_update_nonexistent_item(self, repository: DataRepository) -> None:
         """Test that updating nonexistent item raises ResourceNotFoundError."""
         # Mock get_by_id to raise ResourceNotFoundError
-        with patch.object(
-            repository,
-            "get_by_id",
-            side_effect=ResourceNotFoundError("Data item not found", {"id": 999}),
-        ), pytest.raises(ResourceNotFoundError):
+        with (
+            patch.object(
+                repository,
+                "get_by_id",
+                side_effect=ResourceNotFoundError("Data item not found", {"id": 999}),
+            ),
+            pytest.raises(ResourceNotFoundError),
+        ):
             item = DataItem(id=999, name="New Name", description="Test")
             await repository.update(item)
 
@@ -56,11 +59,14 @@ class TestDataRepositoryErrors:
     async def test_delete_nonexistent_item(self, repository: DataRepository) -> None:
         """Test that deleting nonexistent item raises ResourceNotFoundError."""
         # Mock get_by_id to raise ResourceNotFoundError
-        with patch.object(
-            repository,
-            "get_by_id",
-            side_effect=ResourceNotFoundError("Data item not found", {"id": 999}),
-        ), pytest.raises(ResourceNotFoundError):
+        with (
+            patch.object(
+                repository,
+                "get_by_id",
+                side_effect=ResourceNotFoundError("Data item not found", {"id": 999}),
+            ),
+            pytest.raises(ResourceNotFoundError),
+        ):
             await repository.delete(999)
 
     @pytest.mark.asyncio

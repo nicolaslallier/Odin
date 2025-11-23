@@ -116,9 +116,11 @@ class TestProcessBulkData:
         # Ensure update_state is triggered at 10th batch (line 111)
         task_obj = process_bulk_data
         calls = []
+
         def update_state(**kwargs):
             calls.append(kwargs)
-        setattr(task_obj, 'update_state', update_state)
+
+        task_obj.update_state = update_state
         mock_session_scope.return_value.__enter__.return_value = MagicMock()
         items = [{"id": i, "value": "x"} for i in range(100)]
         task_obj.run(items, batch_size=10)
@@ -128,6 +130,7 @@ class TestProcessBulkData:
     def test_process_bulk_data_batch_size_le_0(self, mock_session_scope):
         # 73: batch_size <= 0 raises
         from src.worker.exceptions import BatchProcessingError
+
         with pytest.raises(BatchProcessingError):
             process_bulk_data([], batch_size=0)
 
@@ -135,20 +138,22 @@ class TestProcessBulkData:
     def test_process_bulk_data_non_dict_item(self, mock_session_scope):
         # 92-94: One non-dict item, should increment failed count
         mock_session_scope.return_value.__enter__.return_value = MagicMock()
-        result = process_bulk_data([{ "id": 1, "value": "ok" }, "baditem"])
+        result = process_bulk_data([{"id": 1, "value": "ok"}, "baditem"])
         assert result["failed"] == 1
 
     @patch("src.worker.tasks.batch.session_scope")
     def test_process_bulk_data_item_process_exception(self, mock_session_scope):
         # 105-107: Simulate per-item exception path, should increment failed
         mock_session_scope.return_value.__enter__.return_value = MagicMock()
+
         # Use an object that triggers exception on access
         class BadItem(dict):
             def get(self, key, default=None):
                 if key == "value":
                     raise RuntimeError("fail")
                 return super().get(key, default)
-        items = [{ "id": 0, "value": "a" }, BadItem({"id": 1, "value": "b"})]
+
+        items = [{"id": 0, "value": "a"}, BadItem({"id": 1, "value": "b"})]
         result = process_bulk_data(items)
         assert result["failed"] >= 1
 
@@ -162,26 +167,30 @@ class TestProcessBulkData:
     def test_send_bulk_notifications_not_list(self):
         # 227: notifications arg is not a list
         from src.worker.exceptions import BatchProcessingError
+
         with pytest.raises(BatchProcessingError):
             send_bulk_notifications("notalist")
 
     def test_send_bulk_notifications_rate_limit_le_0(self):
         # 230: rate_limit <= 0
         from src.worker.exceptions import BatchProcessingError
+
         with pytest.raises(BatchProcessingError):
             send_bulk_notifications([], rate_limit=0)
 
     def test_send_bulk_notifications_non_dict(self):
         # 236: One notification is not dict
         from src.worker.exceptions import BatchProcessingError
+
         with pytest.raises(BatchProcessingError):
-            send_bulk_notifications([{ "user_id": 1, "message": "ok" }, 123])
+            send_bulk_notifications([{"user_id": 1, "message": "ok"}, 123])
 
     @patch("src.worker.tasks.batch.httpx.Client")
     def test_send_notifications_httpx_timeout(self, mock_client):
         # 275: TimeoutException increments failed
         import httpx
-        notifications = [{ "user_id": 1, "message": "A" }]
+
+        notifications = [{"user_id": 1, "message": "A"}]
         mock_http = MagicMock()
         mock_http.post.side_effect = httpx.TimeoutException("timeout")
         mock_client.return_value.__enter__.return_value = mock_http
@@ -193,7 +202,8 @@ class TestProcessBulkData:
     def test_send_notifications_httpx_requesterror(self, mock_client):
         # 278: RequestError increments failed
         import httpx
-        notifications = [{ "user_id": 1, "message": "A" }]
+
+        notifications = [{"user_id": 1, "message": "A"}]
         mock_http = MagicMock()
         mock_http.post.side_effect = httpx.RequestError("oops", request=MagicMock())
         mock_client.return_value.__enter__.return_value = mock_http
@@ -204,7 +214,7 @@ class TestProcessBulkData:
     @patch("src.worker.tasks.batch.httpx.Client")
     def test_send_notifications_generic_exception(self, mock_client):
         # 281: generic Exception increments failed
-        notifications = [{ "user_id": 1, "message": "A" }]
+        notifications = [{"user_id": 1, "message": "A"}]
         mock_http = MagicMock()
         mock_http.post.side_effect = Exception("fail")
         mock_client.return_value.__enter__.return_value = mock_http
@@ -377,13 +387,22 @@ class TestSendBulkNotifications:
         import logging
         from importlib import reload
         import sys
-        with patch("src.worker.tasks.batch.get_config") as mock_conf, patch.object(logging.getLogger("src.worker.tasks.batch"), "info") as mock_log:
+
+        with (
+            patch("src.worker.tasks.batch.get_config") as mock_conf,
+            patch.object(logging.getLogger("src.worker.tasks.batch"), "info") as mock_log,
+        ):
             mock_conf.return_value = MagicMock(
-                minio_endpoint="abc:9000", minio_access_key="a", minio_secret_key="b", minio_secure=False)
+                minio_endpoint="abc:9000",
+                minio_access_key="a",
+                minio_secret_key="b",
+                minio_secure=False,
+            )
             # Reload the module to trigger constructor after patching
             if "src.worker.tasks.batch" in sys.modules:
                 reload(sys.modules["src.worker.tasks.batch"])
             from src.worker.tasks.batch import MinioClient
+
             MinioClient()
             assert mock_log.called
 
@@ -392,9 +411,11 @@ class TestSendBulkNotifications:
     def test_send_bulk_notifications_update_state_called(mock_client):
         task_obj = send_bulk_notifications
         calls = []
+
         def update_state(**kwargs):
             calls.append(kwargs)
-        setattr(task_obj, 'update_state', update_state)
+
+        task_obj.update_state = update_state
         notifications = [{"user_id": i, "message": "msg"} for i in range(100)]
         mock_http_client = MagicMock()
         mock_http_client.post.return_value = MagicMock(status_code=200)

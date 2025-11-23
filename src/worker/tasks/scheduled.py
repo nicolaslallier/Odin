@@ -6,9 +6,10 @@ including health checks, cleanup operations, and report generation.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -182,4 +183,214 @@ def generate_daily_report() -> dict[str, Any]:
             "status": "error",
             "error": str(e),
             "date": datetime.now().isoformat(),
+        }
+
+
+@celery_app.task(name="src.worker.tasks.scheduled.collect_and_record_health_checks")
+def collect_and_record_health_checks() -> dict[str, Any]:
+    """Collect health status from all services and record to TimescaleDB.
+
+    This task runs every minute to:
+    1. Fetch infrastructure health from odin-API /health/services
+    2. Check application services (api, worker, flower) via HTTP
+    3. Send batch health check data to odin-API /health/record endpoint
+
+    Returns:
+        Dictionary containing collection results and statistics
+
+    Example:
+        >>> result = collect_and_record_health_checks.delay()
+        >>> print(result.get())
+    """
+    start_time = time.time()
+    api_base_url = "http://odin-api:8001"
+    checks = []
+    errors = []
+
+    try:
+        # Fetch infrastructure health from API
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                response = client.get(f"{api_base_url}/health/services")
+                if response.status_code == 200:
+                    infra_health = response.json()
+                    # Convert to health check records
+                    for service_name, is_healthy in infra_health.items():
+                        checks.append(
+                            {
+                                "service_name": service_name,
+                                "service_type": "infrastructure",
+                                "is_healthy": is_healthy,
+                                "response_time_ms": None,
+                                "error_message": None if is_healthy else "Service unhealthy",
+                                "metadata": {},
+                            }
+                        )
+                else:
+                    errors.append(f"Failed to fetch infrastructure health: {response.status_code}")
+        except Exception as e:
+            errors.append(f"Error fetching infrastructure health: {str(e)}")
+
+        # Check API service health
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                start = time.time()
+                response = client.get(f"{api_base_url}/health")
+                elapsed_ms = (time.time() - start) * 1000
+
+                is_healthy = response.status_code == 200
+                checks.append(
+                    {
+                        "service_name": "api",
+                        "service_type": "application",
+                        "is_healthy": is_healthy,
+                        "response_time_ms": elapsed_ms,
+                        "error_message": (
+                            None if is_healthy else f"Status code: {response.status_code}"
+                        ),
+                        "metadata": {},
+                    }
+                )
+        except Exception as e:
+            checks.append(
+                {
+                    "service_name": "api",
+                    "service_type": "application",
+                    "is_healthy": False,
+                    "response_time_ms": None,
+                    "error_message": str(e),
+                    "metadata": {},
+                }
+            )
+
+        # Check Worker/Beat via Flower API
+        try:
+            with httpx.Client(timeout=3.0) as client:
+                auth = httpx.BasicAuth("admin", "admin")
+                response = client.get("http://odin-flower:5555/api/workers", auth=auth)
+
+                is_healthy = response.status_code == 200
+                checks.append(
+                    {
+                        "service_name": "worker",
+                        "service_type": "application",
+                        "is_healthy": is_healthy,
+                        "response_time_ms": None,
+                        "error_message": None if is_healthy else "Worker unavailable",
+                        "metadata": {},
+                    }
+                )
+
+                checks.append(
+                    {
+                        "service_name": "beat",
+                        "service_type": "application",
+                        "is_healthy": is_healthy,
+                        "response_time_ms": None,
+                        "error_message": None if is_healthy else "Beat unavailable",
+                        "metadata": {},
+                    }
+                )
+        except Exception as e:
+            checks.append(
+                {
+                    "service_name": "worker",
+                    "service_type": "application",
+                    "is_healthy": False,
+                    "response_time_ms": None,
+                    "error_message": str(e),
+                    "metadata": {},
+                }
+            )
+            checks.append(
+                {
+                    "service_name": "beat",
+                    "service_type": "application",
+                    "is_healthy": False,
+                    "response_time_ms": None,
+                    "error_message": str(e),
+                    "metadata": {},
+                }
+            )
+
+        # Check Flower service
+        try:
+            with httpx.Client(timeout=3.0) as client:
+                auth = httpx.BasicAuth("admin", "admin")
+                start = time.time()
+                response = client.get("http://odin-flower:5555/", auth=auth, follow_redirects=True)
+                elapsed_ms = (time.time() - start) * 1000
+
+                is_healthy = response.status_code == 200
+                checks.append(
+                    {
+                        "service_name": "flower",
+                        "service_type": "application",
+                        "is_healthy": is_healthy,
+                        "response_time_ms": elapsed_ms,
+                        "error_message": (
+                            None if is_healthy else f"Status code: {response.status_code}"
+                        ),
+                        "metadata": {},
+                    }
+                )
+        except Exception as e:
+            checks.append(
+                {
+                    "service_name": "flower",
+                    "service_type": "application",
+                    "is_healthy": False,
+                    "response_time_ms": None,
+                    "error_message": str(e),
+                    "metadata": {},
+                }
+            )
+
+        # Send health checks to API for recording
+        if checks:
+            try:
+                timestamp = datetime.now(timezone.utc).isoformat()
+                payload = {
+                    "checks": checks,
+                    "timestamp": timestamp,
+                }
+
+                with httpx.Client(timeout=10.0) as client:
+                    response = client.post(f"{api_base_url}/health/record", json=payload)
+
+                    if response.status_code == 201:
+                        record_result = response.json()
+                    else:
+                        errors.append(f"Failed to record health checks: {response.status_code}")
+                        record_result = None
+            except Exception as e:
+                errors.append(f"Error recording health checks: {str(e)}")
+                record_result = None
+        else:
+            record_result = None
+
+        # Calculate statistics
+        total_checks = len(checks)
+        healthy_count = sum(1 for check in checks if check["is_healthy"])
+        unhealthy_count = total_checks - healthy_count
+        elapsed_time = time.time() - start_time
+
+        return {
+            "status": "success" if not errors else "partial",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "total_checks": total_checks,
+            "healthy": healthy_count,
+            "unhealthy": unhealthy_count,
+            "recorded": record_result.get("recorded") if record_result else 0,
+            "errors": errors,
+            "elapsed_seconds": round(elapsed_time, 2),
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "checks_collected": len(checks),
+            "errors": errors,
         }

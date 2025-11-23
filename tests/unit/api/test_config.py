@@ -203,22 +203,25 @@ class TestAPIConfig:
 
     def test_config_invalid_port(self) -> None:
         """Test that invalid port raises validation error."""
-        with patch.dict(
-            os.environ,
-            {
-                "API_HOST": "0.0.0.0",
-                "API_PORT": "invalid",
-                "POSTGRES_DSN": "postgresql://user:pass@host:5432/db",
-                "MINIO_ENDPOINT": "minio:9000",
-                "MINIO_ACCESS_KEY": "admin",
-                "MINIO_SECRET_KEY": "password",
-                "RABBITMQ_URL": "amqp://user:pass@host:5672/",
-                "VAULT_ADDR": "http://vault:8200",
-                "VAULT_TOKEN": "token",
-                "OLLAMA_BASE_URL": "http://ollama:11434",
-            },
-            clear=True,
-        ), pytest.raises(ValidationError):
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "API_HOST": "0.0.0.0",
+                    "API_PORT": "invalid",
+                    "POSTGRES_DSN": "postgresql://user:pass@host:5432/db",
+                    "MINIO_ENDPOINT": "minio:9000",
+                    "MINIO_ACCESS_KEY": "admin",
+                    "MINIO_SECRET_KEY": "password",
+                    "RABBITMQ_URL": "amqp://user:pass@host:5672/",
+                    "VAULT_ADDR": "http://vault:8200",
+                    "VAULT_TOKEN": "token",
+                    "OLLAMA_BASE_URL": "http://ollama:11434",
+                },
+                clear=True,
+            ),
+            pytest.raises(ValidationError),
+        ):
             APIConfig()
 
     def test_get_config_singleton(self) -> None:

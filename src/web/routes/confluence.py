@@ -207,9 +207,7 @@ async def convert_from_markdown(
 
 
 @router.post("/confluence/summarize", response_model=SummarizePageResponse)
-async def summarize_page(
-    request: Request, payload: SummarizePageRequest
-) -> SummarizePageResponse:
+async def summarize_page(request: Request, payload: SummarizePageRequest) -> SummarizePageResponse:
     """Summarize a Confluence page using LLM via API.
 
     Args:
@@ -250,9 +248,7 @@ async def summarize_page(
 
 
 @router.post("/confluence/backup-space", response_model=BackupSpaceResponse)
-async def backup_space(
-    request: Request, payload: BackupSpaceRequest
-) -> BackupSpaceResponse:
+async def backup_space(request: Request, payload: BackupSpaceRequest) -> BackupSpaceResponse:
     """Backup all pages from a Confluence space to MinIO storage via API.
 
     Args:
@@ -370,9 +366,7 @@ async def get_models(request: Request) -> ModelsResponse:
 
 
 @router.post("/confluence/statistics-async")
-async def create_statistics_job(
-    request: Request, payload: StatisticsJobRequest
-) -> JSONResponse:
+async def create_statistics_job(request: Request, payload: StatisticsJobRequest) -> JSONResponse:
     """Create async statistics collection job via API.
 
     Args:
@@ -408,9 +402,7 @@ async def create_statistics_job(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create statistics job: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to create statistics job: {str(e)}")
 
 
 @router.get("/confluence/statistics-history/{space_key}")

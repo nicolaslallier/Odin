@@ -483,7 +483,9 @@ async def backup_space(
             page_content = page.get("body", {}).get("storage", {}).get("value", "")
 
             # Create filename (sanitize title)
-            safe_title = "".join(c if c.isalnum() or c in (" ", "_", "-") else "_" for c in page_title)
+            safe_title = "".join(
+                c if c.isalnum() or c in (" ", "_", "-") else "_" for c in page_title
+            )
             filename = f"{page_id}_{safe_title}.html"
             object_key = f"{base_path}/{filename}"
 
@@ -733,9 +735,7 @@ async def receive_statistics_callback(
             stats_dict = payload.statistics.model_dump()
 
             # Parse timestamp
-            timestamp = datetime.fromisoformat(
-                stats_dict["timestamp"].replace("Z", "+00:00")
-            )
+            timestamp = datetime.fromisoformat(stats_dict["timestamp"].replace("Z", "+00:00"))
 
             stats_id = await repository.save_statistics(
                 space_key=payload.space_key,
@@ -873,4 +873,3 @@ async def get_statistics_history(
         raise HTTPException(
             status_code=500, detail=f"Failed to retrieve statistics history: {str(e)}"
         )
-

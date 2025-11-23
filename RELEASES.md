@@ -1,5 +1,154 @@
 # Release Notes
 
+## Version 1.7.0 - Health Check Timeseries Monitoring
+
+**Release Date**: November 23, 2025  
+**Status**: Released
+
+### Overview
+
+Major feature release adding comprehensive timeseries health monitoring with historical tracking and visualization. The system collects health status data every minute from all services (infrastructure and application) and stores it in TimescaleDB for analysis, trending, and troubleshooting.
+
+### Key Features
+
+#### Health Data Collection
+- **Automated Monitoring**: Worker task runs every 1 minute via Celery Beat
+- **All Services Tracked**: Infrastructure (database, storage, queue, vault, ollama) and application services (api, worker, beat, flower, portal)
+- **Response Time Tracking**: Measures API response times for performance monitoring
+- **Error Capture**: Records error messages when services are unhealthy
+
+#### TimescaleDB Integration
+- **Hypertable Storage**: `service_health_checks` table with automatic time-based partitioning
+- **1 Year Retention**: Health data stored for 365 days with automatic cleanup
+- **Compression**: Data older than 7 days compressed automatically (~90% size reduction)
+- **Continuous Aggregates**: Hourly and daily statistics for fast querying
+
+#### API Endpoints
+- **POST /health/record**: Record batch health check data (called by worker)
+- **GET /health/history**: Query historical health data with filters (time range, service names, service type)
+- **GET /health/latest**: Get most recent health status for all services
+
+#### Web Portal Enhancements
+- **Historical Trends Section**: New dashboard section showing health over time
+- **Time Range Selector**: View 1 hour, 24 hours, 7 days, or 30 days of data
+- **Service Charts**: Visual uptime charts for each service
+- **Uptime Statistics**: Overall uptime percentage, services with issues, failed checks
+- **Auto-Refresh**: Historical data updates automatically
+
+#### Data Models
+New Pydantic models:
+- `HealthCheckRecord`: Individual health check data point
+- `HealthCheckBatchRequest`: Batch recording request
+- `HealthCheckQueryParams`: Historical query parameters
+- `HealthCheckHistoryResponse`: Historical data response
+- `LatestHealthStatusResponse`: Latest status response
+- `HealthCheckRecordResponse`: Recording confirmation
+
+### Technical Implementation
+
+#### Database Schema
+```sql
+CREATE TABLE service_health_checks (
+    id SERIAL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    service_name VARCHAR(255) NOT NULL,
+    service_type VARCHAR(50) NOT NULL,
+    is_healthy BOOLEAN NOT NULL,
+    response_time_ms FLOAT,
+    error_message TEXT,
+    metadata JSONB DEFAULT '{}',
+    PRIMARY KEY (id, timestamp)
+);
+```
+
+#### Worker Task
+- **Task Name**: `src.worker.tasks.scheduled.collect_and_record_health_checks`
+- **Schedule**: Every 1 minute
+- **Timeout**: 60 seconds
+- **Error Handling**: Continues on individual service failures, logs errors
+
+#### Repository Pattern
+- **HealthRepository**: Clean separation of database operations
+- **Async Operations**: Full async/await support with SQLAlchemy
+- **Type Safety**: Complete type hints throughout
+
+#### Performance Optimizations
+- **Batch Inserts**: All health checks inserted in single transaction
+- **Indexed Queries**: Indexes on `(service_name, timestamp)` for fast filtering
+- **Chunk Exclusion**: TimescaleDB automatically excludes irrelevant time chunks
+- **Continuous Aggregates**: Pre-computed statistics for common queries
+
+### Testing
+
+#### Unit Tests
+- `test_health_repository.py`: Repository operations with mocked sessions
+- `test_health_record.py`: API endpoint validation
+- `test_health_collection.py`: Worker task logic
+
+#### Integration Tests
+- `test_health_timeseries.py`: End-to-end database operations
+- `test_health_recording.py`: Worker-to-API integration
+
+### Configuration
+
+#### Database Initialization
+New init script: `scripts/init-health-timescaledb.sql`
+- Automatically executed on PostgreSQL container startup
+- Creates hypertable with proper configuration
+- Sets up continuous aggregates and policies
+
+#### Beat Schedule
+```python
+"collect-health-checks": {
+    "task": "src.worker.tasks.scheduled.collect_and_record_health_checks",
+    "schedule": timedelta(minutes=1),
+    "options": {"expires": 60},
+}
+```
+
+### Migration Guide
+
+No migration required - this is a new feature. The health check table is created automatically on first startup.
+
+#### Upgrade Steps
+1. Pull latest code: `git pull origin main`
+2. Rebuild containers: `docker-compose build`
+3. Restart services: `docker-compose up -d`
+4. Verify worker is collecting: `docker logs odin-worker | grep collect_and_record_health_checks`
+
+### Documentation
+
+- **HEALTH_TIMESERIES_GUIDE.md**: Comprehensive guide covering architecture, API endpoints, query examples, troubleshooting
+- **API Documentation**: OpenAPI/Swagger updated with new endpoints
+- **Test Coverage**: 100% coverage for new components
+
+### Known Limitations
+
+- Historical data starts from deployment - no backfilling of past data
+- Portal charts use simple bar visualization (future: more advanced charting)
+- No alerting system yet (future feature)
+
+### Breaking Changes
+
+None - this is a purely additive feature.
+
+### Contributors
+
+- Implemented following TDD (Test-Driven Development) principles
+- Full SOLID compliance in architecture
+- Type-safe throughout with mypy validation
+
+### Future Enhancements
+
+Planned for future releases:
+- Alerting system based on uptime thresholds
+- Email/Slack notifications for service failures
+- More detailed metrics (CPU, memory, disk usage)
+- Export historical data to CSV/JSON
+- Advanced charting with zoom/pan capabilities
+
+---
+
 ## Version 1.3.0 - Image Analysis with Vision Models
 
 **Release Date**: November 22, 2025  

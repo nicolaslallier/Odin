@@ -14,6 +14,9 @@ from fastapi.testclient import TestClient
 from src.api.app import create_app
 from src.api.config import APIConfig
 
+from unittest.mock import patch
+from contextlib import asynccontextmanager
+
 
 @pytest.mark.integration
 class TestImageAnalysisIntegration:
@@ -53,14 +56,12 @@ class TestImageAnalysisIntegration:
         Returns:
             Test client instance
         """
-        from unittest.mock import patch
-        from contextlib import asynccontextmanager
-        
+
         # Create a no-op lifespan to avoid service initialization
         @asynccontextmanager
         async def mock_lifespan(app):
             yield
-        
+
         with patch("src.api.app.lifespan", new=mock_lifespan):
             app = create_app(config=test_config)
             return TestClient(app)

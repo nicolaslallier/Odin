@@ -28,6 +28,70 @@ class ServiceHealthResponse(BaseModel):
     ollama: bool = Field(..., description="Ollama connection status")
 
 
+class HealthCheckRecord(BaseModel):
+    """Health check record for storage in timeseries database."""
+
+    service_name: str = Field(..., description="Service name (e.g., 'database', 'api', 'worker')")
+    service_type: str = Field(..., description="Service type: 'infrastructure' or 'application'")
+    is_healthy: bool = Field(..., description="Health status of the service")
+    response_time_ms: float | None = Field(
+        None, description="Response time in milliseconds (if applicable)"
+    )
+    error_message: str | None = Field(None, description="Error message when service is unhealthy")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional context and metadata"
+    )
+
+
+class HealthCheckBatchRequest(BaseModel):
+    """Batch health check records request."""
+
+    checks: list[HealthCheckRecord] = Field(..., description="List of health check records")
+    timestamp: str | None = Field(
+        None, description="Timestamp for all checks (ISO format), defaults to current time"
+    )
+
+
+class HealthCheckQueryParams(BaseModel):
+    """Query parameters for health check history."""
+
+    service_names: list[str] | None = Field(None, description="Filter by specific service names")
+    service_type: str | None = Field(
+        None, description="Filter by service type: 'infrastructure' or 'application'"
+    )
+    start_time: str = Field(..., description="Start time for query range (ISO format)")
+    end_time: str = Field(..., description="End time for query range (ISO format)")
+    limit: int = Field(
+        default=1000, ge=1, le=10000, description="Maximum number of records to return"
+    )
+
+
+class HealthCheckHistoryResponse(BaseModel):
+    """Historical health check data response."""
+
+    records: list[dict[str, Any]] = Field(..., description="List of health check records")
+    total: int = Field(..., description="Total number of records in the result")
+    start_time: str = Field(..., description="Start time of query range (ISO format)")
+    end_time: str = Field(..., description="End time of query range (ISO format)")
+
+
+class LatestHealthStatusResponse(BaseModel):
+    """Latest health status for all services."""
+
+    services: dict[str, bool] = Field(
+        ..., description="Map of service name to latest health status"
+    )
+    timestamp: str = Field(..., description="Timestamp of latest data (ISO format)")
+
+
+class HealthCheckRecordResponse(BaseModel):
+    """Response after recording health checks."""
+
+    recorded: int = Field(..., description="Number of health checks recorded")
+    timestamp: str = Field(..., description="Timestamp of the records (ISO format)")
+    message: str = Field(..., description="Success message")
+
+
 # File Upload/Download Models
 class FileUploadResponse(BaseModel):
     """File upload response model."""

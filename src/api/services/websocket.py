@@ -7,7 +7,6 @@ capabilities for pushing real-time updates to connected portal clients.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from typing import Any
 from uuid import uuid4
@@ -206,9 +205,7 @@ class WebSocketManager:
         for client_id in failed_clients:
             await self.disconnect(client_id)
 
-        logger.info(
-            f"Broadcast to all: {sent_count} clients ({len(failed_clients)} failed)"
-        )
+        logger.info(f"Broadcast to all: {sent_count} clients ({len(failed_clients)} failed)")
 
         return sent_count
 
@@ -315,4 +312,3 @@ class WebSocketManager:
             await self.disconnect(client_id)
 
         logger.info(f"Cleaned up {len(client_ids)} WebSocket connections")
-

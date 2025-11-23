@@ -1,13 +1,10 @@
-import logging
 from unittest.mock import MagicMock, patch
-
-import pytest
-
 from src.api.logging_config import (
     DatabaseLogHandler,
     StructuredFormatter,
     configure_logging_with_db,
 )
+from datetime import datetime, UTC
 
 
 class DummyRecord:
@@ -41,7 +38,7 @@ def test_structured_formatter_basic_and_fallback():
         lineno=99,
         msg="test message",
         args=(),
-        exc_info=None
+        exc_info=None,
     )
     formatter = StructuredFormatter()
     # Should output JSON
@@ -68,7 +65,7 @@ def test_structured_formatter_with_exception():
         lineno=99,
         msg="error message",
         args=(),
-        exc_info=True
+        exc_info=True,
     )
     with patch.object(StructuredFormatter, "formatException", return_value="excstr"):
         formatter = StructuredFormatter()
@@ -159,13 +156,11 @@ def test_database_log_handler_flush_worker_and_flush_buffer(monkeypatch):
 
 
 def test_database_log_handler_insert_logs(monkeypatch):
-    from datetime import datetime, timezone
-    
     handler = DatabaseLogHandler("dsn", "svc", buffer_size=2)
     handler._engine = MagicMock()
     records = [
         {
-            "timestamp": datetime.now(timezone.utc),
+            "timestamp": datetime.now(UTC),
             "level": "INFO",
             "service": "svc",
             "logger": "l",

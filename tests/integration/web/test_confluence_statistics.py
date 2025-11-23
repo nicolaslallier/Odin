@@ -423,4 +423,3 @@ class TestConfluenceStatisticsWebRegression:
             # Verify error detail is properly extracted
             assert "Confluence credentials not found" in exc_info.value.detail
             assert "[object Object]" not in exc_info.value.detail
-

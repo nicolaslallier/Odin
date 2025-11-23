@@ -1,6 +1,7 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from src.api.services.websocket import WebSocketManager, WebSocketDisconnect
+
 
 @pytest.mark.asyncio
 class TestWebSocketManager:
@@ -27,7 +28,7 @@ class TestWebSocketManager:
     @pytest.mark.asyncio
     async def test_connect_with_client_id(self, ws_manager: WebSocketManager, mock_websocket):
         """Test connect with explicit client id."""
-        cid = 'test-client-42'
+        cid = "test-client-42"
         result = await ws_manager.connect(mock_websocket, client_id=cid)
         assert result == cid
         assert ws_manager.connections[cid] == mock_websocket
@@ -44,17 +45,19 @@ class TestWebSocketManager:
     async def test_disconnect_and_cleanup(self, ws_manager: WebSocketManager, mock_websocket):
         # Setup
         client_id = await ws_manager.connect(mock_websocket)
-        await ws_manager.subscribe_to_space(client_id, 'SPACE')
+        await ws_manager.subscribe_to_space(client_id, "SPACE")
         await ws_manager.disconnect(client_id)
         assert client_id not in ws_manager.connections
         assert ws_manager.get_connection_count() == 0
-        assert ws_manager.get_subscription_count('SPACE') == 0
+        assert ws_manager.get_subscription_count("SPACE") == 0
 
     @pytest.mark.asyncio
-    async def test_disconnect_closes_socket_and_removes_from_all_spaces(self, ws_manager: WebSocketManager, mock_websocket):
+    async def test_disconnect_closes_socket_and_removes_from_all_spaces(
+        self, ws_manager: WebSocketManager, mock_websocket
+    ):
         cid = await ws_manager.connect(mock_websocket)
-        await ws_manager.subscribe_to_space(cid, 'A')
-        await ws_manager.subscribe_to_space(cid, 'B')
+        await ws_manager.subscribe_to_space(cid, "A")
+        await ws_manager.subscribe_to_space(cid, "B")
         await ws_manager.disconnect(cid)
         mock_websocket.close.assert_awaited()
         assert ws_manager.space_subscriptions == {}
@@ -91,7 +94,9 @@ class TestWebSocketManager:
         await ws_manager.unsubscribe_from_space("nope", "SP1")
 
     @pytest.mark.asyncio
-    async def test_broadcast_statistics_and_fails(self, ws_manager: WebSocketManager, mock_websocket):
+    async def test_broadcast_statistics_and_fails(
+        self, ws_manager: WebSocketManager, mock_websocket
+    ):
         cid = await ws_manager.connect(mock_websocket)
         await ws_manager.subscribe_to_space(cid, "SP")
         # Normal send
@@ -103,7 +108,9 @@ class TestWebSocketManager:
         assert count2 == 0
 
     @pytest.mark.asyncio
-    async def test_broadcast_statistics_disconnect(self, ws_manager: WebSocketManager, mock_websocket):
+    async def test_broadcast_statistics_disconnect(
+        self, ws_manager: WebSocketManager, mock_websocket
+    ):
         cid = await ws_manager.connect(mock_websocket)
         await ws_manager.subscribe_to_space(cid, "SP")
         ws_manager.connections[cid].send_json.side_effect = WebSocketDisconnect()
@@ -118,7 +125,9 @@ class TestWebSocketManager:
         assert count == 2
 
     @pytest.mark.asyncio
-    async def test_broadcast_to_all_disconnect_and_error(self, ws_manager: WebSocketManager, mock_websocket):
+    async def test_broadcast_to_all_disconnect_and_error(
+        self, ws_manager: WebSocketManager, mock_websocket
+    ):
         c = await ws_manager.connect(mock_websocket)
         ws_manager.connections[c].send_json.side_effect = WebSocketDisconnect()
         result = await ws_manager.broadcast_to_all({"msg": "X"})
@@ -130,7 +139,9 @@ class TestWebSocketManager:
         assert result2 == 0
 
     @pytest.mark.asyncio
-    async def test_send_to_client_success_failure(self, ws_manager: WebSocketManager, mock_websocket):
+    async def test_send_to_client_success_failure(
+        self, ws_manager: WebSocketManager, mock_websocket
+    ):
         cid = await ws_manager.connect(mock_websocket)
         ok = await ws_manager.send_to_client(cid, {"foo": 1})
         assert ok is True
@@ -146,18 +157,24 @@ class TestWebSocketManager:
         assert ok4 is False
 
     @pytest.mark.asyncio
-    async def test_handle_client_message_subscribe_unsubscribe_ping_unknown_error(self, ws_manager: WebSocketManager):
+    async def test_handle_client_message_subscribe_unsubscribe_ping_unknown_error(
+        self, ws_manager: WebSocketManager
+    ):
         cid = "cid1"
         ws_manager.connections[cid] = AsyncMock()
         # subscribe
-        with patch.object(ws_manager, "subscribe_to_space", new=AsyncMock()) as sub_mock, \
-             patch.object(ws_manager, "send_to_client", new=AsyncMock()) as send_mock:
+        with (
+            patch.object(ws_manager, "subscribe_to_space", new=AsyncMock()) as sub_mock,
+            patch.object(ws_manager, "send_to_client", new=AsyncMock()) as send_mock,
+        ):
             await ws_manager.handle_client_message(cid, {"type": "subscribe", "space_key": "SP2"})
             sub_mock.assert_awaited_with(cid, "SP2")
             send_mock.assert_awaited()
         # unsubscribe
-        with patch.object(ws_manager, "unsubscribe_from_space", new=AsyncMock()) as unsub_mock, \
-             patch.object(ws_manager, "send_to_client", new=AsyncMock()) as send_mock:
+        with (
+            patch.object(ws_manager, "unsubscribe_from_space", new=AsyncMock()) as unsub_mock,
+            patch.object(ws_manager, "send_to_client", new=AsyncMock()) as send_mock,
+        ):
             await ws_manager.handle_client_message(cid, {"type": "unsubscribe", "space_key": "SP3"})
             unsub_mock.assert_awaited_with(cid, "SP3")
             send_mock.assert_awaited()
@@ -175,10 +192,11 @@ class TestWebSocketManager:
         cid = "cid1"
         ws_manager.connections[cid] = AsyncMock()
         # Simulate an error in send_to_client, ensure handler doesn't raise
-        with patch.object(ws_manager, "send_to_client", new=AsyncMock(side_effect=Exception("fail"))):
+        with patch.object(
+            ws_manager, "send_to_client", new=AsyncMock(side_effect=Exception("fail"))
+        ):
             # Should not raise, error is logged and handled inside handler
-            import asyncio
-            asyncio.run(ws_manager.handle_client_message(cid, None))
+            await ws_manager.handle_client_message(cid, None)
 
     @pytest.mark.asyncio
     async def test_cleanup(self, ws_manager: WebSocketManager, mock_websocket):

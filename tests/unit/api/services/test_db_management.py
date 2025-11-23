@@ -25,24 +25,24 @@ def mock_db_service() -> MagicMock:
         MagicMock instance configured for database operations
     """
     from unittest.mock import AsyncMock as AM
-    
+
     service = MagicMock()
-    
+
     # Create a proper async context manager that can be configured per test
     class MockAsyncContextManager:
         def __init__(self):
             self.session = AM()
-            
+
         async def __aenter__(self):
             return self.session
-            
+
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             return None
-    
+
     # Store the instance so tests can configure the session
     service._mock_cm = MockAsyncContextManager()
     service.get_session.return_value = service._mock_cm
-    
+
     return service
 
 
@@ -654,9 +654,7 @@ class TestExportData:
         mock_result = MagicMock()
         mock_result.returns_rows = True
         mock_result.keys.return_value = ["id", "data", "buffer"]
-        mock_result.fetchall.return_value = [
-            (1, b"binary_data_here", memoryview(b"buffer_data"))
-        ]
+        mock_result.fetchall.return_value = [(1, b"binary_data_here", memoryview(b"buffer_data"))]
         mock_session.execute.return_value = mock_result
         mock_db_service._mock_cm.session = mock_session
 
@@ -671,7 +669,6 @@ class TestExportData:
         assert result.rows[0][2] == "<binary: 11 bytes>"
 
 
-
 class TestValidateSQL:
     """Tests for validate_sql method."""
 
@@ -680,7 +677,7 @@ class TestValidateSQL:
     ) -> None:
         """Test validate_sql with empty query."""
         result = db_management_service.validate_sql("")
-        
+
         assert result["is_valid"] is False
         assert result["error"] == "Query is empty"
         assert result["query_type"] == "UNKNOWN"
@@ -690,7 +687,7 @@ class TestValidateSQL:
     ) -> None:
         """Test validate_sql with whitespace-only query."""
         result = db_management_service.validate_sql("   \n\t  ")
-        
+
         assert result["is_valid"] is False
         assert result["error"] == "Query is empty"
         assert result["query_type"] == "UNKNOWN"
@@ -700,10 +697,10 @@ class TestValidateSQL:
     ) -> None:
         """Test validate_sql with query that fails to parse."""
         import unittest.mock as mock
-        
+
         with mock.patch("sqlparse.parse", return_value=[]):
             result = db_management_service.validate_sql("INVALID SQL;;;")
-            
+
             assert result["is_valid"] is False
             assert result["error"] == "Failed to parse query"
             assert result["query_type"] == "UNKNOWN"
@@ -713,26 +710,24 @@ class TestValidateSQL:
     ) -> None:
         """Test validate_sql when statement.get_type() returns None."""
         import unittest.mock as mock
-        
+
         mock_statement = mock.MagicMock()
         mock_statement.get_type.return_value = None
         mock_statement.tokens = []
-        
+
         with mock.patch("sqlparse.parse", return_value=[mock_statement]):
             result = db_management_service.validate_sql("SELECT 1")
-            
+
             assert result["is_valid"] is True
             assert result["query_type"] == "UNKNOWN"
 
-    def test_validate_sql_exception(
-        self, db_management_service: DatabaseManagementService
-    ) -> None:
+    def test_validate_sql_exception(self, db_management_service: DatabaseManagementService) -> None:
         """Test validate_sql exception handling."""
         import unittest.mock as mock
-        
+
         with mock.patch("sqlparse.parse", side_effect=Exception("Parse error")):
             result = db_management_service.validate_sql("SELECT * FROM test")
-            
+
             assert result["is_valid"] is False
             assert result["query_type"] == "UNKNOWN"
             assert "Parse error" in result["error"]
@@ -743,7 +738,7 @@ class TestValidateSQL:
     ) -> None:
         """Test execute_query with invalid SQL."""
         import unittest.mock as mock
-        
+
         # Mock validate_sql to return invalid
         with mock.patch.object(
             db_management_service,
@@ -756,7 +751,7 @@ class TestValidateSQL:
             },
         ):
             result = await db_management_service.execute_query("INVALID SQL")
-            
+
             assert result.success is False
             assert result.row_count == 0
             assert result.error == "Syntax error"

@@ -44,18 +44,14 @@ class TestConfluenceStatisticsEndpoint:
         mock.close = AsyncMock()
         return mock
 
-    async def test_get_statistics_success(
-        self, mock_vault_service, mock_confluence_service
-    ):
+    async def test_get_statistics_success(self, mock_vault_service, mock_confluence_service):
         """Test successful retrieval of space statistics.
 
         Given: A valid space key
         When: The statistics endpoint is called
         Then: Statistics are retrieved from Confluence and returned
         """
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -76,9 +72,7 @@ class TestConfluenceStatisticsEndpoint:
             assert result["total_size_bytes"] == 1024000
             assert len(result["contributors"]) == 2
 
-    async def test_get_statistics_empty_space(
-        self, mock_vault_service, mock_confluence_service
-    ):
+    async def test_get_statistics_empty_space(self, mock_vault_service, mock_confluence_service):
         """Test statistics for an empty space.
 
         Given: A space with no pages
@@ -94,9 +88,7 @@ class TestConfluenceStatisticsEndpoint:
             "last_updated": None,
         }
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -108,9 +100,7 @@ class TestConfluenceStatisticsEndpoint:
             assert result["total_size_bytes"] == 0
             assert result["contributors"] == []
 
-    async def test_get_statistics_large_space(
-        self, mock_vault_service, mock_confluence_service
-    ):
+    async def test_get_statistics_large_space(self, mock_vault_service, mock_confluence_service):
         """Test statistics for a large space with many pages.
 
         Given: A space with 10,000+ pages
@@ -126,9 +116,7 @@ class TestConfluenceStatisticsEndpoint:
             "last_updated": "2025-11-23T10:00:00.000Z",
         }
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -153,9 +141,7 @@ class TestConfluenceStatisticsEndpoint:
             "Space 'NOTFOUND' does not exist"
         )
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -174,9 +160,7 @@ class TestConfluenceStatisticsEndpoint:
         When: The statistics endpoint is called
         Then: Returns 404 error about missing credentials
         """
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             # _get_confluence_service raises HTTPException directly
             mock_get_service.side_effect = HTTPException(
                 status_code=404, detail="Confluence credentials not found in Vault"
@@ -206,9 +190,7 @@ class TestConfluenceStatisticsEndpoint:
             "Confluence API error: Rate limit exceeded"
         )
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -229,13 +211,11 @@ class TestConfluenceStatisticsEndpoint:
         When: The statistics endpoint is called
         Then: Returns 503 service unavailable error
         """
-        mock_confluence_service.get_space_statistics.side_effect = (
-            ServiceUnavailableError("Cannot connect to Confluence Cloud")
+        mock_confluence_service.get_space_statistics.side_effect = ServiceUnavailableError(
+            "Cannot connect to Confluence Cloud"
         )
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -254,9 +234,7 @@ class TestConfluenceStatisticsEndpoint:
         When: The statistics endpoint is called
         Then: Returns 503 error about authentication failure
         """
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             # _get_confluence_service raises HTTPException directly
             mock_get_service.side_effect = HTTPException(
                 status_code=503,
@@ -287,9 +265,7 @@ class TestConfluenceStatisticsEndpoint:
             "Unexpected error"
         )
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -325,9 +301,7 @@ class TestConfluenceStatisticsRegression:
         mock.close = AsyncMock()
         return mock
 
-    async def test_regression_vault_credentials_missing_returns_404(
-        self, mock_vault_service
-    ):
+    async def test_regression_vault_credentials_missing_returns_404(self, mock_vault_service):
         """Regression test: Ensure missing Vault credentials return 404, not 500.
 
         Bug: Previously returned 500 when credentials were missing from Vault
@@ -338,9 +312,7 @@ class TestConfluenceStatisticsRegression:
         When: Statistics endpoint is called
         Then: Returns 404 (not 500) with helpful error message
         """
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             # _get_confluence_service raises HTTPException(404)
             mock_get_service.side_effect = HTTPException(
                 status_code=404,
@@ -382,9 +354,7 @@ class TestConfluenceStatisticsRegression:
             "last_updated": "2025-11-23T10:00:00.000Z",
         }
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -417,13 +387,9 @@ class TestConfluenceStatisticsRegression:
         When: The endpoint is called
         Then: Service close() is still called for cleanup via finally block
         """
-        mock_confluence_service.get_space_statistics.side_effect = ConfluenceError(
-            "API error"
-        )
+        mock_confluence_service.get_space_statistics.side_effect = ConfluenceError("API error")
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -458,9 +424,7 @@ class TestConfluenceStatisticsRegression:
             "last_updated": "2025-11-23T10:00:00.000Z",
         }
 
-        with patch(
-            "src.api.routes.confluence._get_confluence_service"
-        ) as mock_get_service:
+        with patch("src.api.routes.confluence._get_confluence_service") as mock_get_service:
             mock_get_service.return_value = mock_confluence_service
 
             from src.api.routes.confluence import get_statistics, StatisticsRequest
@@ -473,4 +437,3 @@ class TestConfluenceStatisticsRegression:
             assert "🚀" in result["space_name"]
             assert "例え" in result["contributors"][0]
             assert "用户" in result["contributors"][1]
-

@@ -40,7 +40,7 @@ class TestWebApplicationIntegration:
         # Check that the web dashboard (HTML) renders
         resp_html = client.get("/health")
         assert resp_html.status_code == 200
-        assert "Odin" in resp_html.text or "Health" in resp_html.text    # minimal HTML content check
+        assert "Odin" in resp_html.text or "Health" in resp_html.text  # minimal HTML content check
 
         # Check that health API returns JSON
         resp_api = client.get("/health/api")

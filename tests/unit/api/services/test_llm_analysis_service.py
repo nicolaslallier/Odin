@@ -65,9 +65,7 @@ class TestLLMLogAnalyzer:
             await analyzer.analyze_logs(sample_logs, analysis_type="invalid_type")
 
     @pytest.mark.asyncio
-    async def test_analyze_logs_root_cause(
-        self, analyzer, sample_logs, mock_ollama_service
-    ):
+    async def test_analyze_logs_root_cause(self, analyzer, sample_logs, mock_ollama_service):
         """Test root cause analysis."""
         mock_ollama_service.generate.return_value = (
             "# Root Cause Analysis\n\n"
@@ -121,7 +119,9 @@ class TestLLMLogAnalyzer:
         """Test anomaly detection with baseline stats."""
         baseline_stats = {"avg_errors_per_hour": 5, "avg_warnings_per_hour": 10}
 
-        mock_ollama_service.generate.return_value = "Anomaly detected: Error rate is 200% above baseline"
+        mock_ollama_service.generate.return_value = (
+            "Anomaly detected: Error rate is 200% above baseline"
+        )
 
         result = await analyzer.analyze_logs(
             sample_logs, analysis_type="anomaly", baseline_stats=baseline_stats
@@ -132,11 +132,11 @@ class TestLLMLogAnalyzer:
         mock_ollama_service.generate.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_analyze_logs_correlation(
-        self, analyzer, sample_logs, mock_ollama_service
-    ):
+    async def test_analyze_logs_correlation(self, analyzer, sample_logs, mock_ollama_service):
         """Test event correlation analysis."""
-        mock_ollama_service.generate.return_value = "Events correlated: Connection failure led to retry"
+        mock_ollama_service.generate.return_value = (
+            "Events correlated: Connection failure led to retry"
+        )
 
         result = await analyzer.analyze_logs(sample_logs, analysis_type="correlation")
 
@@ -154,9 +154,7 @@ class TestLLMLogAnalyzer:
         assert result["logs_analyzed"] == 2
 
     @pytest.mark.asyncio
-    async def test_analyze_logs_llm_failure(
-        self, analyzer, sample_logs, mock_ollama_service
-    ):
+    async def test_analyze_logs_llm_failure(self, analyzer, sample_logs, mock_ollama_service):
         """Test analyze_logs when LLM call fails."""
         mock_ollama_service.generate.side_effect = Exception("LLM service unavailable")
 
@@ -216,12 +214,10 @@ class TestLLMLogAnalyzer:
         Summary line 1
         Summary line 2
         Summary line 3
-        
         ## Findings:
         - Finding 1
         - Finding 2
         * Finding 3
-        
         ## Recommendations:
         1. Recommendation 1
         2. Recommendation 2
@@ -357,4 +353,3 @@ class TestLLMLogAnalyzer:
 
         assert len(patterns) == 1
         assert "proper description" in patterns[0]["description"]
-

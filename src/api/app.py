@@ -7,6 +7,7 @@ instances, following the Open/Closed Principle (OCP) from SOLID.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from typing import cast
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -111,7 +112,7 @@ def create_app(config: APIConfig | None = None) -> FastAPI:
     from src.api.exceptions import ResourceNotFoundError
 
     @app.exception_handler(ResourceNotFoundError)
-    async def not_found_handler(request: Request, exc: ResourceNotFoundError):
+    async def not_found_handler(request: Request, exc: ResourceNotFoundError) -> JSONResponse:
         return JSONResponse(status_code=404, content={"detail": str(exc)})
 
     # Store configuration in app state
@@ -144,7 +145,7 @@ def create_app(config: APIConfig | None = None) -> FastAPI:
     from src.api.services.websocket import WebSocketManager
 
     @app.websocket("/ws")
-    async def websocket_endpoint(websocket: WebSocket):
+    async def websocket_endpoint(websocket: WebSocket) -> None:
         """WebSocket endpoint for real-time updates.
 
         This endpoint accepts WebSocket connections from portal clients
@@ -186,4 +187,4 @@ def get_container(app: FastAPI) -> ServiceContainer:
     """
     if not hasattr(app.state, "container"):
         raise RuntimeError("Service container not initialized")
-    return app.state.container
+    return cast(ServiceContainer, app.state.container)

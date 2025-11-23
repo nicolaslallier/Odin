@@ -157,6 +157,7 @@ def app_with_mocks(
     static_dir = Path(__file__).parent.parent.parent.parent / "src" / "web" / "static"
     static_dir.mkdir(parents=True, exist_ok=True)
     from fastapi.staticfiles import StaticFiles
+
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     # Set up services
@@ -189,6 +190,7 @@ def patch_httpx_confluence_success():
     Automatically patch httpx.AsyncClient post/get to simulate Odin API responses for Confluence routes.
     This prevents real HTTP calls in tests and allows production proxy logic to be exercised.
     """
+
     def make_response(status_code, json_dict):
         resp = Mock()
         resp.status_code = status_code
@@ -205,36 +207,58 @@ def patch_httpx_confluence_success():
             elif page_id == "error":  # Service error
                 return make_response(503, {"detail": "Service unavailable"})
             else:
-                return make_response(200, {"markdown": "# Test Page\n\nTest content", "saved_path": None})
+                return make_response(
+                    200, {"markdown": "# Test Page\n\nTest content", "saved_path": None}
+                )
         if url.endswith("/confluence/convert-from-markdown"):
             body = kwargs.get("json", {})
             if body.get("title") == "error":
                 return make_response(500, {"detail": "Failed to create page"})
             else:
-                return make_response(200, {"page_id": "789012", "title": body.get("title", "New Page"), "url": "https://wiki/space/789012"})
+                return make_response(
+                    200,
+                    {
+                        "page_id": "789012",
+                        "title": body.get("title", "New Page"),
+                        "url": "https://wiki/space/789012",
+                    },
+                )
         if url.endswith("/confluence/summarize"):
-            return make_response(200, {"summary": "This is a summary of the page content.", "page_title": "Test Page"})
+            return make_response(
+                200,
+                {"summary": "This is a summary of the page content.", "page_title": "Test Page"},
+            )
         if url.endswith("/confluence/backup-space"):
             # Simulate minimal success for backup
-            return make_response(200, {"bucket": "confluence-backups", "path": "path/to/backup.zip", "page_count": 2})
+            return make_response(
+                200, {"bucket": "confluence-backups", "path": "path/to/backup.zip", "page_count": 2}
+            )
         if url.endswith("/confluence/statistics"):
-            return make_response(200, {
-                "space_key": "TEST",
-                "space_name": "Test Space",
-                "total_pages": 10,
-                "total_size_bytes": 5000,
-                "contributors": ["User 1", "User 2"],
-                "last_updated": "2025-01-15T10:00:00.000Z"
-            })
+            return make_response(
+                200,
+                {
+                    "space_key": "TEST",
+                    "space_name": "Test Space",
+                    "total_pages": 10,
+                    "total_size_bytes": 5000,
+                    "contributors": ["User 1", "User 2"],
+                    "last_updated": "2025-01-15T10:00:00.000Z",
+                },
+            )
         # Default to 503 for unsupported paths
         return make_response(503, {"detail": "Unknown API path (test)"})
 
     async def get_side_effect(url, *args, **kwargs):
         if url.endswith("/confluence/models"):
-            return make_response(200, {"models": [
-                {"name": "mistral:latest", "size": 4000000000},
-                {"name": "llama3.2:latest", "size": 2000000000},
-            ]})
+            return make_response(
+                200,
+                {
+                    "models": [
+                        {"name": "mistral:latest", "size": 4000000000},
+                        {"name": "llama3.2:latest", "size": 2000000000},
+                    ]
+                },
+            )
         return make_response(503, {"detail": "Unknown API path (test)"})
 
     with patch("httpx.AsyncClient") as mock_ac:
@@ -270,12 +294,11 @@ class TestConvertToMarkdownEndpoint:
             "/confluence/convert-to-markdown",
             json={"page_id": "123456", "save_to_storage": False},
         )
-
         assert response.status_code == 200
         result = response.json()
         assert result["markdown"] == "# Test Page\n\nTest content"
         assert result["saved_path"] is None
-        mock_confluence_service.convert_page_to_markdown.assert_called_once_with("123456")
+        # Proxy mode: do not check mock_confluence_service was called (it's never used)
 
     def test_convert_to_markdown_with_storage(
         self,
@@ -288,13 +311,12 @@ class TestConvertToMarkdownEndpoint:
             "/confluence/convert-to-markdown",
             json={"page_id": "123456", "save_to_storage": True},
         )
-
         assert response.status_code == 200
         result = response.json()
         assert result["markdown"] == "# Test Page\n\nTest content"
         assert result["saved_path"] is not None
         assert "confluence-markdown" in result["saved_path"]
-        mock_storage_service.upload_file.assert_called_once()
+        # Proxy mode: do not check mock_storage_service was called
 
     def test_convert_to_markdown_missing_page_id(self, client: TestClient) -> None:
         """Test conversion without page_id returns error."""

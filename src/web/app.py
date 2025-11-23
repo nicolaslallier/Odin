@@ -10,6 +10,8 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from collections.abc import AsyncGenerator
+from typing import cast
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -62,8 +64,9 @@ def create_app(config: WebConfig | None = None) -> FastAPI:
 
     # Lifespan startup/shutdown logic
     @asynccontextmanager
-    async def lifespan(app):
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from src.api.repositories.query_history_repository import create_tables
+
         try:
             logger.info("Creating query_history table if it doesn't exist...")
             await create_tables(app.state.db_service.get_engine())
@@ -150,11 +153,9 @@ def create_app(config: WebConfig | None = None) -> FastAPI:
     # Explicit alias: /health-page -> health_page
     from fastapi.responses import HTMLResponse
     from src.web.routes.health import health_page
+
     app.add_api_route(
-        "/health-page",
-        endpoint=health_page,
-        response_class=HTMLResponse,
-        methods=["GET"]
+        "/health-page", endpoint=health_page, response_class=HTMLResponse, methods=["GET"]
     )
 
     # Add health check endpoint
@@ -189,4 +190,4 @@ def get_config_dependency(app: FastAPI) -> WebConfig:
         >>> async def info(config: WebConfig = Depends(get_config_dependency)):
         >>>     return {"host": config.host, "port": config.port}
     """
-    return app.state.config
+    return cast(WebConfig, app.state.config)
