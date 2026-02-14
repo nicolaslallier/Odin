@@ -23,7 +23,18 @@ jobs:
 
       - run: npm ci
 
-      - name: Deploy Convex
+      - name: Check Convex deploy key
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: |
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "::error::CONVEX_DEPLOY_KEY secret is not set. Add it in Settings → Secrets and variables → Actions."
+            echo "Generate a dev deploy key at https://dashboard.convex.dev (Project → Settings → Deploy Key)."
+            echo "You must run 'npx convex login' locally first to link this project to Convex cloud (anonymous/local dev won't work in CI)."
+            exit 1
+          fi
+
+      - name: Deploy Convex (dev)
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
         run: npx convex deploy --yes

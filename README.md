@@ -60,15 +60,24 @@ Copy `web/.env.local.example` to `web/.env.local` and fill in values after runni
 |---------|-------------|
 | `npm run dev` | Start Next.js dev server (from `web/`) |
 | `npx convex dev` | Start Convex dev (syncs functions, watches for changes) |
-| `npx convex deploy` | Deploy Convex backend to production |
+| `npx convex deploy` | Deploy Convex backend (to dev in CI) |
 | `npx convex import --table tasks sampleData.jsonl` | Import sample tasks |
 
 ## CI/CD (GitHub Actions)
 
 A workflow in `.github/workflows/deploy.yml` runs on push to `main` and on manual trigger. It:
 
-1. Deploys the Convex backend
+1. Deploys the Convex backend to **dev**
 2. Builds the Next.js app (verifies the frontend compiles)
+
+### Prerequisites for CI deploy
+
+**You must use Convex cloud, not anonymous/local development.** If you ran `npx convex dev` without logging in, the project is in anonymous mode and CI will fail.
+
+1. Run `npx convex login` locally and sign in (GitHub, etc.).
+2. Run `npx convex dev` to push your project to Convex cloud.
+3. In [Convex Dashboard](https://dashboard.convex.dev), select your **dev** deployment.
+4. Generate a **Dev Deploy Key** (Project → Settings → Deploy Key).
 
 ### Required GitHub secrets
 
@@ -76,8 +85,8 @@ Add these in **Settings → Secrets and variables → Actions**:
 
 | Secret | Description |
 |--------|-------------|
-| `CONVEX_DEPLOY_KEY` | Deploy key for your Convex production deployment. Generate in [Convex Dashboard](https://dashboard.convex.dev) → Project → Settings → Deploy Key |
-| `NEXT_PUBLIC_CONVEX_URL` | Production Convex URL (e.g. `https://your-prod-deployment.convex.cloud`). Found in the Convex dashboard for your production deployment. |
+| `CONVEX_DEPLOY_KEY` | Dev deploy key from Convex Dashboard (format: `dev:xxx\|eyJ...`). |
+| `NEXT_PUBLIC_CONVEX_URL` | Dev Convex URL (e.g. `https://your-dev-deployment.convex.cloud`). Found in the Convex dashboard for your dev deployment. |
 
 ### Deploying the Next.js frontend
 
